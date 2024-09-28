@@ -1,0 +1,6 @@
+/target
+docker/docker-qemu/nocloud_alpine-3.20.2-x86_64-bios-cloudinit-r0.qcow2
+*.iso
+**/*.iso
+**/*.qcow2
+/.vscode

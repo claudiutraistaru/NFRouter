@@ -1,0 +1,53 @@
+version: '3.8'
+
+services:
+  qemu:
+    image: ubuntu:22.04
+    container_name: qemu-alpine
+    privileged: true
+    cap_add:
+      - SYS_ADMIN
+      - NET_ADMIN
+    devices:
+      - /dev/kvm:/dev/kvm
+      - /dev/net/tun:/dev/net/tun
+    volumes:
+      - ./nocloud_alpine-3.20.2-x86_64-bios-cloudinit-r0.qcow2:/root/alpine.qcow2:rw
+      - ./cloud-init.iso:/root/cloud-init.iso:ro
+      - ./start-qemu.sh:/usr/local/bin/start-qemu.sh:ro
+      - ./generate-dhcpd-conf.sh:/run/generate-dhcpd-conf.sh:ro
+      - ../target:/target
+    networks:
+      eth0_outside:
+        ipv4_address: 192.168.10.10  # Example static IP for external network
+      eth1_inside:
+       ipv4_address: 10.10.0.10    # Example static IP for internal network
+    command: /usr/local/bin/start-qemu.sh
+    ports:
+      - "5900:5900"
+
+  inside_alpine:
+    image: alpine
+    container_name: inside_alpine
+    privileged: true
+    networks:
+      eth1_inside:
+        ipv4_address: 10.10.0.3
+    command: >
+     sh -c "apk update && apk add iputils traceroute mtr ;
+     ip route del default;
+     ip route add 0.0.0.0/0 via 10.10.0.2 dev eth0;
+     sleep infinity "
+networks:
+  eth0_outside:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 192.168.10.0/24  # Define the external network subnet
+
+  eth1_inside:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 10.10.0.0/24     # Define the internal network subnet
+
