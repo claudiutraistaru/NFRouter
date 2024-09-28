@@ -12,7 +12,7 @@
    - [Routing Commands](#routing-commands)
    - [DHCP Server Commands](#dhcp-server-commands)
    - [IP Forwarding Commands](#ip-forwarding-commands)
-5. [Complete Scenario: Router-on-a-Stick with Firewall to Allow ICMP](#scenario-setting-up-router-on-a-stick-with-firewall-to-allow-icmp)
+5. [Scenario: Router-on-a-Stick with Firewall to Allow ICMP](#scenario-setting-up-router-on-a-stick-with-firewall-to-allow-icmp)
 
 
 ---
