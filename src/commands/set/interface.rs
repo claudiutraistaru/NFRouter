@@ -395,35 +395,44 @@ fn set_mtu(
     running_config: &mut RunningConfig,
 ) -> Result<String, String> {
     let mtu: u32 = mtu_str.parse().map_err(|_| "Invalid MTU".to_string())?;
-    let result = Command::new("ip")
-        .arg("link")
-        .arg("set")
-        .arg(interface)
-        .arg("mtu")
-        .arg(&mtu.to_string())
-        .output();
+    if cfg!(test) {
+        running_config.add_value_to_node(
+            &["interface", interface, "options"],
+            "mtu",
+            json!(mtu),
+        )?;
+        Ok(format!("Set MTU {} on interface {}\n", mtu, interface))
+    } else {
+        let result = Command::new("ip")
+            .arg("link")
+            .arg("set")
+            .arg(interface)
+            .arg("mtu")
+            .arg(&mtu.to_string())
+            .output();
 
-    if let Ok(res) = result {
-        if res.status.success() {
-            running_config.add_value_to_node(
-                &["interface", interface, "options"],
-                "mtu",
-                json!(mtu),
-            )?;
-            Ok(format!("Set MTU {} on interface {}\n", mtu, interface))
+        if let Ok(res) = result {
+            if res.status.success() {
+                running_config.add_value_to_node(
+                    &["interface", interface, "options"],
+                    "mtu",
+                    json!(mtu),
+                )?;
+                Ok(format!("Set MTU {} on interface {}\n", mtu, interface))
+            } else {
+                Err(format!(
+                    "Failed to set MTU {} on interface {}: {}",
+                    mtu,
+                    interface,
+                    String::from_utf8_lossy(&res.stderr)
+                ))
+            }
         } else {
             Err(format!(
-                "Failed to set MTU {} on interface {}: {}",
-                mtu,
-                interface,
-                String::from_utf8_lossy(&res.stderr)
+                "Failed to execute MTU command: {}",
+                result.unwrap_err()
             ))
         }
-    } else {
-        Err(format!(
-            "Failed to execute MTU command: {}",
-            result.unwrap_err()
-        ))
     }
 }
 
@@ -443,40 +452,51 @@ fn set_duplex(
     duplex: &str,
     running_config: &mut RunningConfig,
 ) -> Result<String, String> {
-    let result = Command::new("ethtool")
-        .arg("-s")
-        .arg(interface)
-        .arg("duplex")
-        .arg(duplex)
-        .output();
+    if !cfg!(test) {
+        let result = Command::new("ethtool")
+            .arg("-s")
+            .arg(interface)
+            .arg("duplex")
+            .arg(duplex)
+            .output();
 
-    if let Ok(res) = result {
-        if res.status.success() {
-            running_config.add_value_to_node(
-                &["interface", interface, "options"],
-                "duplex",
-                json!(duplex),
-            )?;
-            Ok(format!(
-                "Set duplex {} on interface {}\n",
-                duplex, interface
-            ))
+        if let Ok(res) = result {
+            if res.status.success() {
+                running_config.add_value_to_node(
+                    &["interface", interface, "options"],
+                    "duplex",
+                    json!(duplex),
+                )?;
+                Ok(format!(
+                    "Set duplex {} on interface {}\n",
+                    duplex, interface
+                ))
+            } else {
+                Err(format!(
+                    "Failed to set duplex {} on interface {}: {}",
+                    duplex,
+                    interface,
+                    String::from_utf8_lossy(&res.stderr)
+                ))
+            }
         } else {
             Err(format!(
-                "Failed to set duplex {} on interface {}: {}",
-                duplex,
-                interface,
-                String::from_utf8_lossy(&res.stderr)
+                "Failed to execute duplex command: {}",
+                result.unwrap_err()
             ))
         }
     } else {
-        Err(format!(
-            "Failed to execute duplex command: {}",
-            result.unwrap_err()
+        running_config.add_value_to_node(
+            &["interface", interface, "options"],
+            "duplex",
+            json!(duplex),
+        )?;
+        Ok(format!(
+            "Set duplex {} on interface {}\n",
+            duplex, interface
         ))
     }
 }
-
 /// Sets the hardware ID of an interface.
 /// # Parameters
 /// * `interface`: The name of the interface for which to set the hardware ID.
@@ -490,35 +510,44 @@ fn set_hw_id(
     hw_id: &str,
     running_config: &mut RunningConfig,
 ) -> Result<String, String> {
-    let result = Command::new("ip")
-        .arg("link")
-        .arg("set")
-        .arg(interface)
-        .arg("address")
-        .arg(hw_id)
-        .output();
+    if cfg!(test) {
+        running_config.add_value_to_node(
+            &["interface", interface, "options"],
+            "hw-id",
+            json!(hw_id),
+        )?;
+        Ok(format!("Set hw-id {} on interface {}\n", hw_id, interface))
+    } else {
+        let result = Command::new("ip")
+            .arg("link")
+            .arg("set")
+            .arg(interface)
+            .arg("address")
+            .arg(hw_id)
+            .output();
 
-    if let Ok(res) = result {
-        if res.status.success() {
-            running_config.add_value_to_node(
-                &["interface", interface, "options"],
-                "hw-id",
-                json!(hw_id),
-            )?;
-            Ok(format!("Set hw-id {} on interface {}\n", hw_id, interface))
+        if let Ok(res) = result {
+            if res.status.success() {
+                running_config.add_value_to_node(
+                    &["interface", interface, "options"],
+                    "hw-id",
+                    json!(hw_id),
+                )?;
+                Ok(format!("Set hw-id {} on interface {}\n", hw_id, interface))
+            } else {
+                Err(format!(
+                    "Failed to set hw-id {} on interface {}: {}",
+                    hw_id,
+                    interface,
+                    String::from_utf8_lossy(&res.stderr)
+                ))
+            }
         } else {
             Err(format!(
-                "Failed to set hw-id {} on interface {}: {}",
-                hw_id,
-                interface,
-                String::from_utf8_lossy(&res.stderr)
+                "Failed to execute hw-id command: {}",
+                result.unwrap_err()
             ))
         }
-    } else {
-        Err(format!(
-            "Failed to execute hw-id command: {}",
-            result.unwrap_err()
-        ))
     }
 }
 
@@ -541,41 +570,53 @@ fn set_interface_enabled(
     let enabled = true;
 
     let action = if enabled { "up" } else { "down" };
+    if cfg!(test) {
+        running_config.add_value_to_node(
+            &["interface", interface, "options"],
+            "enabled",
+            json!(enabled),
+        )?;
+        Ok(format!(
+            "Interface {} is now {}",
+            interface,
+            if enabled { "enabled" } else { "disabled" }
+        ))
+    } else {
+        // Execute the command to bring the interface up or down
+        let result = Command::new("ip")
+            .arg("link")
+            .arg("set")
+            .arg(interface)
+            .arg(action)
+            .output();
 
-    // Execute the command to bring the interface up or down
-    let result = Command::new("ip")
-        .arg("link")
-        .arg("set")
-        .arg(interface)
-        .arg(action)
-        .output();
-
-    if let Ok(res) = result {
-        if res.status.success() {
-            // Update the running configuration
-            running_config.add_value_to_node(
-                &["interface", interface, "options"],
-                "enabled",
-                json!(enabled),
-            )?;
-            Ok(format!(
-                "Interface {} is now {}",
-                interface,
-                if enabled { "enabled" } else { "disabled" }
-            ))
+        if let Ok(res) = result {
+            if res.status.success() {
+                // Update the running configuration
+                running_config.add_value_to_node(
+                    &["interface", interface, "options"],
+                    "enabled",
+                    json!(enabled),
+                )?;
+                Ok(format!(
+                    "Interface {} is now {}",
+                    interface,
+                    if enabled { "enabled" } else { "disabled" }
+                ))
+            } else {
+                Err(format!(
+                    "Failed to set interface {} to {}: {}",
+                    interface,
+                    action,
+                    String::from_utf8_lossy(&res.stderr)
+                ))
+            }
         } else {
             Err(format!(
-                "Failed to set interface {} to {}: {}",
-                interface,
-                action,
-                String::from_utf8_lossy(&res.stderr)
+                "Failed to execute the command: {}",
+                result.unwrap_err()
             ))
         }
-    } else {
-        Err(format!(
-            "Failed to execute the command: {}",
-            result.unwrap_err()
-        ))
     }
 }
 
@@ -616,7 +657,26 @@ pub fn set_interface_vlan(
     running_config: &mut RunningConfig,
 ) -> Result<String, String> {
     let vlan_interface = format!("{}.{}", interface, vlan_id);
-
+    if cfg!(test) {
+        running_config.add_value_to_node(
+            &["interface", &vlan_interface, "vlan"],
+            "id",
+            json!(vlan_id),
+        )?;
+        if let Some(ip) = ip_address.clone() {
+            running_config.add_value_to_node(&["interface", &vlan_interface], "ip", json!(ip))?;
+        }
+        return Ok(format!(
+            "Test mode: Created VLAN interface {} with VLAN ID {}{}",
+            vlan_interface,
+            vlan_id,
+            if ip_address.is_some() {
+                " and IP address"
+            } else {
+                ""
+            }
+        ));
+    }
     // Execute the command to create a VLAN interface
     let create_vlan_result = Command::new("ip")
         .arg("link")
@@ -973,32 +1033,39 @@ pub fn set_enable_proxy_arp(
     running_config: &mut RunningConfig,
 ) -> Result<String, String> {
     // Update the running config first
+    if cfg!(test) {
+        running_config.add_value_to_node(
+            &["interface", &interface, "ip"],
+            "enable-proxy-arp",
+            json!(true),
+        )?;
+        Ok(format!("Proxy ARP enabled for interface {}\n", interface))
+    } else {
+        running_config.add_value_to_node(
+            &["interface", &interface, "ip"],
+            "enable-proxy-arp",
+            json!(true),
+        )?;
+        // Now perform the system command action to enable or disable proxy ARP
 
-    running_config.add_value_to_node(
-        &["interface", &interface, "ip"],
-        "enable-proxy-arp",
-        json!(true),
-    )?;
+        let proxy_arp_path = format!("/proc/sys/net/ipv4/conf/{}/proxy_arp", interface);
 
-    // Now perform the system command action to enable or disable proxy ARP
+        let output = Command::new("sh")
+            .arg("-c")
+            .arg(format!("echo {} > {}", 1, proxy_arp_path))
+            .output();
 
-    let proxy_arp_path = format!("/proc/sys/net/ipv4/conf/{}/proxy_arp", interface);
-
-    let output = Command::new("sh")
-        .arg("-c")
-        .arg(format!("echo {} > {}", 1, proxy_arp_path))
-        .output();
-
-    match output {
-        Ok(output) if output.status.success() => {
-            Ok(format!("Proxy ARP enabled for interface {}\n", interface))
+        match output {
+            Ok(output) if output.status.success() => {
+                Ok(format!("Proxy ARP enabled for interface {}\n", interface))
+            }
+            Ok(output) => Err(format!(
+                "Failed to set proxy ARP for interface {}: {}",
+                interface,
+                String::from_utf8_lossy(&output.stderr)
+            )),
+            Err(e) => Err(format!("Failed to execute command: {}", e)),
         }
-        Ok(output) => Err(format!(
-            "Failed to set proxy ARP for interface {}: {}",
-            interface,
-            String::from_utf8_lossy(&output.stderr)
-        )),
-        Err(e) => Err(format!("Failed to execute command: {}", e)),
     }
 }
 pub fn help_commands() -> Vec<(&'static str, &'static str)> {
