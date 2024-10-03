@@ -59,7 +59,9 @@ pub fn set_hostname(
     if let Err(e) = result {
         return Err(format!("Failed to update /etc/hosts: {}", e));
     }
-    running_config.config["hostname"] = json!(hostname);
+
+    running_config.config["hostname"] = json!(hostname.to_string());
+
     Ok(format!(
         "Hostname set successfully and change made permanent"
     ))
@@ -137,4 +139,66 @@ pub fn help_commands() -> Vec<(&'static str, &'static str)> {
             "Set the system hostname to the specified name.",
         ),
     ]
+}
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_set_hostname_with_special_characters() {
+        let mut running_config = RunningConfig::new();
+        let hostname = "test-host-123_ABC".to_string();
+
+        // Call the function to set the hostname
+        let result = set_hostname(hostname.clone(), &mut running_config);
+
+        // Verify that the set did not succed
+        assert!(
+            result.is_err(),
+            "Failed to set hostname for the current session"
+        );
+    }
+
+    #[test]
+    fn test_set_hostname_empty_string() {
+        let mut running_config = RunningConfig::new();
+        let hostname = "".to_string();
+
+        // Call the function to set the hostname
+        let result = set_hostname(hostname.clone(), &mut running_config);
+
+        // Verify that the set did not succed
+        assert!(
+            result.is_err(),
+            "Failed to set hostname for the current session"
+        );
+    }
+
+    #[test]
+    fn test_help_commands_contains_set_hostname() {
+        let commands = help_commands();
+        let set_hostname_cmd = commands
+            .iter()
+            .find(|&&(cmd, _)| cmd == "set hostname")
+            .expect("Help commands should contain 'set hostname'");
+
+        assert_eq!(
+            set_hostname_cmd.1, "Set the system hostname.",
+            "Help command description mismatch"
+        );
+    }
+
+    #[test]
+    fn test_help_commands_contains_set_hostname_with_arg() {
+        let commands = help_commands();
+        let set_hostname_with_arg_cmd = commands
+            .iter()
+            .find(|&&(cmd, _)| cmd == "set hostname <hostname>")
+            .expect("Help commands should contain 'set hostname <hostname>'");
+
+        assert_eq!(
+            set_hostname_with_arg_cmd.1, "Set the system hostname to the specified name.",
+            "Help command description mismatch"
+        );
+    }
 }
