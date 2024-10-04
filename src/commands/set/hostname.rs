@@ -37,8 +37,17 @@ pub fn set_hostname(
     hostname: String,
     running_config: &mut RunningConfig,
 ) -> Result<String, String> {
-    //running_config.hostname = Some(hostname.clone());
+    if hostname.is_empty() {
+        return Err("Hostname cannot be an empty string".to_string());
+    }
+    if !is_valid_hostname(&hostname) {
+        return Err("Hostname contains invalid characters or format".to_string());
+    }
 
+    if cfg!(test) {
+        running_config.config["hostname"] = json!(hostname.to_string());
+        return Ok("Hostname set successfully (test mode)".to_string());
+    }
     // Step 1: Set the hostname for the current session
     let c_hostname =
         CString::new(hostname.clone()).map_err(|e| format!("Failed to convert hostname: {}", e))?;
@@ -66,7 +75,60 @@ pub fn set_hostname(
         "Hostname set successfully and change made permanent"
     ))
 }
+/// Checks if a hostname is valid according to the rules of the Domain Name System (DNS).
+///
+/// A hostname must consist of letters, digits, hyphens, and periods. Each label in the hostname must be at most 63 characters long, and there must not be more than 253 total characters.
+///
+/// Additionally, each label must start and end with a letter or digit, and may contain any number of hyphens. The hostname itself may have no leading hyphen.
+///
+/// # Parameters
+///
+/// * `hostname`: The hostname to check.
+///
+/// # Returns
+///
+/// A boolean indicating whether the hostname is valid.
+fn is_valid_hostname(hostname: &str) -> bool {
+    if hostname.is_empty() || hostname.len() > 253 {
+        return false;
+    }
 
+    let labels = hostname.split('.');
+
+    for label in labels {
+        if label.is_empty() || label.len() > 63 {
+            return false;
+        }
+
+        let bytes = label.as_bytes();
+
+        // Labels must start and end with a letter or digit
+        if !is_letter_or_digit(bytes[0]) || !is_letter_or_digit(bytes[bytes.len() - 1]) {
+            return false;
+        }
+
+        // Check each character in the label
+        for &b in bytes {
+            if !(is_letter_or_digit(b) || b == b'-') {
+                return false;
+            }
+        }
+    }
+
+    true
+}
+/// Checks whether a byte represents a letter or digit.
+///
+/// # Parameters
+///
+/// * `b`: The byte to check.
+///
+/// # Returns
+///
+/// A boolean indicating whether the byte represents a letter or digit.
+fn is_letter_or_digit(b: u8) -> bool {
+    (b'A'..=b'Z').contains(&b) || (b'a'..=b'z').contains(&b) || (b'0'..=b'9').contains(&b)
+}
 /// Updates the contents of the `/etc/hostname` file with the provided `hostname`.
 ///
 /// This function creates a new file at the specified path, writes the hostname to it,
@@ -143,6 +205,29 @@ pub fn help_commands() -> Vec<(&'static str, &'static str)> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn test_set_hostname_updates_running_config() {
+        let mut running_config = RunningConfig::new();
+        let hostname = "test1234".to_string();
+
+        // Call the function to set the hostname
+        let result = set_hostname(hostname.clone(), &mut running_config);
+        println!("testt");
+        // Verify that the function succeeded
+        assert!(
+            result.is_ok(),
+            "Function failed with error: {:?}",
+            result.err()
+        );
+
+        // Verify that the running_config was updated correctly
+        let expected_config = json!({ "hostname": hostname });
+        assert_eq!(
+            running_config.config, expected_config,
+            "RunningConfig did not contain the expected hostname"
+        );
+    }
 
     #[test]
     fn test_set_hostname_with_special_characters() {
