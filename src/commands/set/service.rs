@@ -2,7 +2,14 @@ use crate::config::RunningConfig;
 use serde_json::{json, Value};
 use std::process::Command;
 
-pub fn parse_dhcp_server_command(
+/// Parses a DHCP server command and updates the running configuration accordingly.
+///
+/// This function takes a list of strings representing the command parts (e.g. "dhcp-server", "--address", "10.0.0.1") and
+/// an instance of `RunningConfig` to be updated in place.
+///
+/// It returns a string representation of the DHCP server configuration, or an error message if parsing fails.
+///
+pub fn parse_service_dhcp_server_command(
     parts: &[&str],
     running_config: &mut RunningConfig,
 ) -> Result<String, String> {
@@ -88,6 +95,8 @@ pub fn parse_dhcp_server_command(
     }
 }
 
+/// Checks if all necessary configurations are set before enabling the DHCP server.
+/// Returns an error or bool
 fn check_dhcp_config(running_config: &RunningConfig) -> Result<bool, String> {
     // Check if shared-network-name and related settings exist
     if let Some(shared_networks) = running_config
@@ -338,7 +347,7 @@ mod tests {
             .unwrap();
 
         let parts = vec!["set", "service", "dhcp-server", "enabled"];
-        let result = parse_dhcp_server_command(&parts, &mut running_config);
+        let result = parse_service_dhcp_server_command(&parts, &mut running_config);
 
         assert!(
             result.is_ok(),
@@ -374,7 +383,7 @@ mod tests {
         // Missing other necessary configurations like stop, default-router, etc.
 
         let parts = vec!["set", "service", "dhcp-server", "enabled"];
-        let result = parse_dhcp_server_command(&parts, &mut running_config);
+        let result = parse_service_dhcp_server_command(&parts, &mut running_config);
 
         assert!(
             result.is_err(),
@@ -409,7 +418,7 @@ mod tests {
             "lease",
             "86400",
         ];
-        let result = parse_dhcp_server_command(&parts, &mut running_config);
+        let result = parse_service_dhcp_server_command(&parts, &mut running_config);
 
         assert!(
             result.is_ok(),
@@ -440,7 +449,7 @@ mod tests {
             "192.168.1.0/24",
             "invalid-option",
         ];
-        let result = parse_dhcp_server_command(&parts, &mut running_config);
+        let result = parse_service_dhcp_server_command(&parts, &mut running_config);
 
         assert!(result.is_err(), "Expected error for invalid option");
         assert_eq!(

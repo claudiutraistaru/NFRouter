@@ -35,7 +35,7 @@ use interface::{
 };
 use nat::set_nat_masquerade;
 use route::set_route;
-use service::parse_dhcp_server_command;
+use service::parse_service_dhcp_server_command;
 use std::net::IpAddr;
 use system::set_ip_forwarding;
 pub fn parse_set_command(
@@ -370,7 +370,7 @@ pub fn parse_set_command(
                 }
             }
             "service" if parts[2] == "dhcp-server" => {
-                parse_dhcp_server_command(parts, running_config)
+                parse_service_dhcp_server_command(parts, running_config)
             }
 
             _ => Err("Invalid set command".to_string()),
