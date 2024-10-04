@@ -19,3 +19,62 @@
 use crate::config::RunningConfig;
 use serde_json::json;
 use std::process::Command;
+
+pub fn unset_nat_masquerade(
+    from_zone: String,
+    to_zone: String,
+    running_config: &mut RunningConfig,
+) -> Result<String, String> {
+    // Check if the NAT masquerade exists in the configuration
+    let nat_exists = running_config
+        .get_value_from_node(&["nat", "masquerade"], "from")
+        .and_then(|from| {
+            running_config
+                .get_value_from_node(&["nat", "masquerade"], "to")
+                .filter(|to| *from == json!(from_zone) && **to == json!(to_zone))
+            // Dereference 'to' and 'from' for comparison
+        })
+        .is_some();
+
+    if !nat_exists {
+        return Err(format!(
+            "NAT masquerade from zone '{}' to zone '{}' is not set.",
+            from_zone, to_zone
+        ));
+    }
+
+    // Remove the NAT masquerade rule using iptables
+    let nat_result = Command::new("iptables")
+        .arg("-t")
+        .arg("nat")
+        .arg("-D")
+        .arg("POSTROUTING")
+        .arg("-o")
+        .arg(&to_zone)
+        .arg("-j")
+        .arg("MASQUERADE")
+        .output()
+        .map_err(|e| format!("Failed to remove NAT masquerade: {}", e))?;
+
+    if !nat_result.status.success() {
+        return Err(format!(
+            "Failed to remove NAT masquerade: {}",
+            String::from_utf8_lossy(&nat_result.stderr)
+        ));
+    }
+
+    // Remove the NAT masquerade entry from the configuration
+    running_config.remove_value_from_node(&["nat"], "masquerade")?;
+
+    Ok(format!(
+        "Removed NAT masquerade from zone '{}' to zone '{}'",
+        from_zone, to_zone
+    ))
+}
+
+pub fn help_command_unset() -> Vec<(&'static str, &'static str)> {
+    vec![(
+        "unset nat masquerade from <zonename> to <zonename>",
+        "Disable NAT type MASQUERADE from a zone to another.",
+    )]
+}

@@ -17,6 +17,8 @@
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
 pub mod interface;
+pub mod nat;
+pub mod route;
 
 use crate::config::RunningConfig;
 use interface::{unset_interface_ip, unset_interface_speed};
