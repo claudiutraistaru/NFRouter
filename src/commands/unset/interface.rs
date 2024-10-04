@@ -191,23 +191,19 @@ pub fn help_commands() -> Vec<(&'static str, &'static str)> {
     vec![
         (
             "unset interface <interface> ip",
-            "Set the IP address for a specified interface.",
+            "Removes  the IP address for a specified interface.",
         ),
         (
             "unset interface <interface> options speed",
-            "Set the speed of a network interface.",
+            "Removes the speed entry from configuration.",
         ),
         (
             "unset interface <interface> options mtu",
-            "Set the MTU of a network interface.",
+            "Resets the MTU of an interface to 1500 and removes the configuration entry.",
         ),
         (
             "unset interface <interface> options duplex",
-            "Set the duplex mode of a network interface.",
-        ),
-        (
-            "unset interface <interface> options hw-id",
-            "Set the hardware ID (MAC address) of a network interface.",
-        ),
+            "Removes the duplex mode of a network interface from configuration and sets that interface to autonegotation.",
+        )
     ]
 }
