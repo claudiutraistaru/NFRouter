@@ -75,7 +75,19 @@ pub fn set_nat_masquerade(
             to_zone
         )
     })?;
+    // Update the running configuration
+    let nat_config = json!({
+        "from": from_zone,
+        "to": to_zone,
+    });
+    if cfg!(test) {
+        running_config.add_value_to_node(&["nat"], &format!("masquerade"), nat_config)?;
 
+        return Ok(format!(
+            "Enabled NAT masquerade from zone '{}' to zone '{}' (interface: '{}')",
+            from_zone, to_zone, to_zone_interface
+        ));
+    }
     // Set up NAT masquerade using iptables with the identified interface for to_zone
     let nat_result = Command::new("iptables")
         .arg("-t")
@@ -96,11 +108,6 @@ pub fn set_nat_masquerade(
         ));
     }
 
-    // Update the running configuration
-    let nat_config = json!({
-        "from": from_zone,
-        "to": to_zone,
-    });
     running_config.add_value_to_node(&["nat"], &format!("masquerade"), nat_config)?;
 
     Ok(format!(
@@ -115,4 +122,144 @@ pub fn help_command() -> Vec<(&'static str, &'static str)> {
         "set nat masquerade from <zonename> to <zonename>",
         "Enable NAT type MASQUERADE from a zone to another.",
     )]
+}
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::config::RunningConfig;
+    use serde_json::json;
+
+    // Helper function to set up running configuration with zones and interfaces
+    fn setup_running_config_with_zones(
+        running_config: &mut RunningConfig,
+        from_zone: &str,
+        to_zone: &str,
+    ) {
+        // Add interfaces with zones
+        running_config
+            .add_value_to_node(&["interface", "eth0"], "zone", json!(from_zone))
+            .unwrap();
+        running_config
+            .add_value_to_node(&["interface", "eth1"], "zone", json!(to_zone))
+            .unwrap();
+    }
+
+    #[test]
+    fn test_set_nat_masquerade_success() {
+        let mut running_config = RunningConfig::new();
+
+        // Enable IP forwarding in the system configuration
+        running_config
+            .add_value_to_node(&["system", "ipforwarding"], "enabled", json!(true))
+            .unwrap();
+
+        // Set up from_zone and to_zone
+        let from_zone = "internal";
+        let to_zone = "external";
+
+        // Configure running config with interfaces and zones
+        setup_running_config_with_zones(&mut running_config, from_zone, to_zone);
+
+        // Simulate success of iptables command (in test mode)
+        let result = set_nat_masquerade(
+            from_zone.to_string(),
+            to_zone.to_string(),
+            &mut running_config,
+        );
+
+        assert!(result.is_ok(), "Test failed with error: {:?}", result.err());
+
+        // Verify that NAT masquerade configuration was added to running config
+        let expected_nat_config = json!({
+            "from": from_zone,
+            "to": to_zone,
+        });
+        assert_eq!(
+            running_config.get_value_from_node(&["nat"], "masquerade"),
+            Some(&expected_nat_config),
+            "NAT masquerade configuration not set correctly in RunningConfig"
+        );
+    }
+
+    #[test]
+    fn test_set_nat_masquerade_ip_forwarding_disabled() {
+        let mut running_config = RunningConfig::new();
+
+        // IP forwarding is disabled by default
+        let from_zone = "internal";
+        let to_zone = "external";
+
+        setup_running_config_with_zones(&mut running_config, from_zone, to_zone);
+
+        // Call the function
+        let result = set_nat_masquerade(
+            from_zone.to_string(),
+            to_zone.to_string(),
+            &mut running_config,
+        );
+
+        assert!(result.is_err(), "Expected error but got success");
+        assert_eq!(
+            result.unwrap_err(),
+            "IP forwarding is not enabled. Please enable it with 'set system ipforwarding enabled'."
+        );
+    }
+
+    #[test]
+    fn test_set_nat_masquerade_zone_not_defined() {
+        let mut running_config = RunningConfig::new();
+
+        // Enable IP forwarding
+        running_config
+            .add_value_to_node(&["system", "ipforwarding"], "enabled", json!(true))
+            .unwrap();
+
+        // Set up only from_zone, but not to_zone
+        let from_zone = "internal";
+        let to_zone = "non_existent_zone";
+
+        // Configure running config with only the from_zone
+        running_config
+            .add_value_to_node(&["interface", "eth0"], "zone", json!(from_zone))
+            .unwrap();
+
+        // Call the function
+        let result = set_nat_masquerade(
+            from_zone.to_string(),
+            to_zone.to_string(),
+            &mut running_config,
+        );
+
+        assert!(result.is_err(), "Expected error but got success");
+        assert_eq!(
+            result.unwrap_err(),
+            format!("Zone '{}' is not defined on any interface.", to_zone)
+        );
+    }
+
+    #[test]
+    fn test_set_nat_masquerade_no_interfaces_configured() {
+        let mut running_config = RunningConfig::new();
+
+        // Enable IP forwarding
+        running_config
+            .add_value_to_node(&["system", "ipforwarding"], "enabled", json!(true))
+            .unwrap();
+
+        // Call the function with no interfaces configured
+        let from_zone = "internal";
+        let to_zone = "external";
+
+        let result = set_nat_masquerade(
+            from_zone.to_string(),
+            to_zone.to_string(),
+            &mut running_config,
+        );
+
+        assert!(result.is_err(), "Expected error but got success");
+        assert_eq!(
+            result.unwrap_err(),
+            format!("Zone '{}' is not defined on any interface.", from_zone)
+        );
+    }
 }
