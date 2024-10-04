@@ -187,6 +187,46 @@ pub fn unset_interface_duplex(
         ))
     }
 }
+pub fn unset_interface_vlan(
+    interface: String,
+    running_config: &mut RunningConfig,
+) -> Result<String, String> {
+    unimplemented!()
+}
+
+pub fn unset_interface_zone(
+    interface: String,
+    running_config: &mut RunningConfig,
+) -> Result<String, String> {
+    unimplemented!()
+}
+
+pub fn unset_interface_description(
+    interface: String,
+    running_config: &mut RunningConfig,
+) -> Result<String, String> {
+    unimplemented!()
+}
+pub fn unset_interface_ajustmss(
+    interface: String,
+    running_config: &mut RunningConfig,
+) -> Result<String, String> {
+    unimplemented!()
+}
+
+pub fn unset_interface_enable_proxyarp(
+    interface: String,
+    running_config: &mut RunningConfig,
+) -> Result<String, String> {
+    unimplemented!()
+}
+pub fn unset_interface_firewall(
+    interface: String,
+    running_config: &mut RunningConfig,
+) -> Result<String, String> {
+    unimplemented!()
+}
+
 pub fn help_commands() -> Vec<(&'static str, &'static str)> {
     vec![
         (
@@ -207,3 +247,4 @@ pub fn help_commands() -> Vec<(&'static str, &'static str)> {
         )
     ]
 }
+
