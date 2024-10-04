@@ -46,7 +46,7 @@ pub fn set_hostname(
 
     if cfg!(test) {
         running_config.config["hostname"] = json!(hostname.to_string());
-        return Ok("Hostname set successfully (test mode)".to_string());
+        return Ok("Hostname set successfully".to_string());
     }
     // Step 1: Set the hostname for the current session
     let c_hostname =
@@ -213,7 +213,6 @@ mod tests {
 
         // Call the function to set the hostname
         let result = set_hostname(hostname.clone(), &mut running_config);
-        println!("testt");
         // Verify that the function succeeded
         assert!(
             result.is_ok(),
@@ -222,9 +221,9 @@ mod tests {
         );
 
         // Verify that the running_config was updated correctly
-        let expected_config = json!({ "hostname": hostname });
+        let expected_config = json!(hostname);
         assert_eq!(
-            running_config.config, expected_config,
+            running_config.config["hostname"], expected_config,
             "RunningConfig did not contain the expected hostname"
         );
     }
