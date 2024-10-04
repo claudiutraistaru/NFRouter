@@ -19,6 +19,7 @@
 pub mod interface;
 pub mod nat;
 pub mod route;
+pub mod system;
 
 use crate::config::RunningConfig;
 use interface::{unset_interface_ip, unset_interface_speed};

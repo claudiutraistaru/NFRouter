@@ -15,9 +15,10 @@ pub fn parse_dhcp_server_command(
                 // Apply the configuration when DHCP is enabled
                 apply_dhcp_config(running_config)?;
 
-                // Start or restart the DNSMASQ service for DHCP
-                run_command("rc-service", &["dnsmasq", "restart"])?;
-
+                if !cfg!(test) {
+                    // Start or restart the DNSMASQ service for DHCP
+                    run_command("rc-service", &["dnsmasq", "restart"])?;
+                }
                 Ok("DHCP server (dnsmasq) enabled and configuration applied".to_string())
             } else {
                 Err(
@@ -166,10 +167,10 @@ fn apply_dhcp_config(running_config: &RunningConfig) -> Result<(), String> {
                                 domain_name
                             ));
                         }
-                        // if let Some(lease_time) = config.get("lease").and_then(|v| v.as_str()) {
-                        //     dnsmasq_config.push_str(&format!("dhcp-lease-time={}\n", lease_time));
-                        // }
 
+                        if cfg!(test) {
+                            continue; // Skip saving the configuration to file
+                        }
                         // Save the configuration to the `/etc/dnsmasq.d/dhcp.conf` file
                         run_command(
                             "sh",
@@ -253,4 +254,327 @@ pub fn help_commands() -> Vec<(&'static str, &'static str)> {
             "Set the lease time in seconds for the specified subnet."
         )
     ]
+}
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::config::RunningConfig;
+    use serde_json::json;
+
+    #[test]
+    fn test_set_dhcp_server_enabled_success() {
+        let mut running_config = RunningConfig::new();
+
+        // Simulate valid DHCP configuration
+        running_config
+            .add_value_to_node(
+                &[
+                    "service",
+                    "dhcp-server",
+                    "shared-network-name",
+                    "net1",
+                    "subnet",
+                    "192.168.1.0/24",
+                ],
+                "start",
+                json!("192.168.1.10"),
+            )
+            .unwrap();
+        running_config
+            .add_value_to_node(
+                &[
+                    "service",
+                    "dhcp-server",
+                    "shared-network-name",
+                    "net1",
+                    "subnet",
+                    "192.168.1.0/24",
+                ],
+                "stop",
+                json!("192.168.1.100"),
+            )
+            .unwrap();
+        running_config
+            .add_value_to_node(
+                &[
+                    "service",
+                    "dhcp-server",
+                    "shared-network-name",
+                    "net1",
+                    "subnet",
+                    "192.168.1.0/24",
+                ],
+                "default-router",
+                json!("192.168.1.1"),
+            )
+            .unwrap();
+        running_config
+            .add_value_to_node(
+                &[
+                    "service",
+                    "dhcp-server",
+                    "shared-network-name",
+                    "net1",
+                    "subnet",
+                    "192.168.1.0/24",
+                ],
+                "dns-server",
+                json!("8.8.8.8"),
+            )
+            .unwrap();
+        running_config
+            .add_value_to_node(
+                &[
+                    "service",
+                    "dhcp-server",
+                    "shared-network-name",
+                    "net1",
+                    "subnet",
+                    "192.168.1.0/24",
+                ],
+                "lease",
+                json!("86400"),
+            )
+            .unwrap();
+
+        let parts = vec!["set", "service", "dhcp-server", "enabled"];
+        let result = parse_dhcp_server_command(&parts, &mut running_config);
+
+        assert!(
+            result.is_ok(),
+            "Failed to enable DHCP server: {:?}",
+            result.err()
+        );
+        assert_eq!(
+            running_config.config["service"]["dhcp-server"]["enabled"],
+            json!(true),
+            "DHCP server was not enabled in the running configuration"
+        );
+    }
+
+    #[test]
+    fn test_set_dhcp_server_enabled_incomplete_config() {
+        let mut running_config = RunningConfig::new();
+
+        // Simulate incomplete DHCP configuration
+        running_config
+            .add_value_to_node(
+                &[
+                    "service",
+                    "dhcp-server",
+                    "shared-network-name",
+                    "net1",
+                    "subnet",
+                    "192.168.1.0/24",
+                ],
+                "start",
+                json!("192.168.1.10"),
+            )
+            .unwrap();
+        // Missing other necessary configurations like stop, default-router, etc.
+
+        let parts = vec!["set", "service", "dhcp-server", "enabled"];
+        let result = parse_dhcp_server_command(&parts, &mut running_config);
+
+        assert!(
+            result.is_err(),
+            "Expected error for incomplete DHCP configuration"
+        );
+        assert_eq!(
+            result.err().unwrap(),
+            "Incomplete DHCP configuration. Set all necessary options before enabling."
+        );
+    }
+
+    #[test]
+    fn test_set_dhcp_server_shared_network_success() {
+        let mut running_config = RunningConfig::new();
+
+        let parts = vec![
+            "set",
+            "service",
+            "dhcp-server",
+            "shared-network-name",
+            "net1",
+            "subnet",
+            "192.168.1.0/24",
+            "start",
+            "192.168.1.10",
+            "stop",
+            "192.168.1.100",
+            "default-router",
+            "192.168.1.1",
+            "dns-server",
+            "8.8.8.8",
+            "lease",
+            "86400",
+        ];
+        let result = parse_dhcp_server_command(&parts, &mut running_config);
+
+        assert!(
+            result.is_ok(),
+            "Failed to configure DHCP server: {:?}",
+            result.err()
+        );
+        let subnet_config = &running_config.config["service"]["dhcp-server"]["shared-network-name"]
+            ["net1"]["subnet"]["192.168.1.0/24"];
+
+        assert_eq!(subnet_config["start"], json!("192.168.1.10"));
+        assert_eq!(subnet_config["stop"], json!("192.168.1.100"));
+        assert_eq!(subnet_config["default-router"], json!("192.168.1.1"));
+        assert_eq!(subnet_config["dns-server"], json!("8.8.8.8"));
+        assert_eq!(subnet_config["lease"], json!("86400"));
+    }
+
+    #[test]
+    fn test_set_dhcp_server_shared_network_invalid_option() {
+        let mut running_config = RunningConfig::new();
+
+        let parts = vec![
+            "set",
+            "service",
+            "dhcp-server",
+            "shared-network-name",
+            "net1",
+            "subnet",
+            "192.168.1.0/24",
+            "invalid-option",
+        ];
+        let result = parse_dhcp_server_command(&parts, &mut running_config);
+
+        assert!(result.is_err(), "Expected error for invalid option");
+        assert_eq!(
+            result.err().unwrap(),
+            "Invalid or incomplete DHCP server option: invalid-option"
+        );
+    }
+
+    #[test]
+    fn test_apply_dhcp_config_success() {
+        let mut running_config = RunningConfig::new();
+
+        // Enable DHCP server and set valid configuration
+        running_config
+            .add_value_to_node(&["service", "dhcp-server"], "enabled", json!(true))
+            .unwrap();
+        running_config
+            .add_value_to_node(
+                &[
+                    "service",
+                    "dhcp-server",
+                    "shared-network-name",
+                    "net1",
+                    "subnet",
+                    "192.168.1.0/24",
+                ],
+                "start",
+                json!("192.168.1.10"),
+            )
+            .unwrap();
+        running_config
+            .add_value_to_node(
+                &[
+                    "service",
+                    "dhcp-server",
+                    "shared-network-name",
+                    "net1",
+                    "subnet",
+                    "192.168.1.0/24",
+                ],
+                "stop",
+                json!("192.168.1.100"),
+            )
+            .unwrap();
+        running_config
+            .add_value_to_node(
+                &[
+                    "service",
+                    "dhcp-server",
+                    "shared-network-name",
+                    "net1",
+                    "subnet",
+                    "192.168.1.0/24",
+                ],
+                "default-router",
+                json!("192.168.1.1"),
+            )
+            .unwrap();
+        running_config
+            .add_value_to_node(
+                &[
+                    "service",
+                    "dhcp-server",
+                    "shared-network-name",
+                    "net1",
+                    "subnet",
+                    "192.168.1.0/24",
+                ],
+                "dns-server",
+                json!("8.8.8.8"),
+            )
+            .unwrap();
+        running_config
+            .add_value_to_node(
+                &[
+                    "service",
+                    "dhcp-server",
+                    "shared-network-name",
+                    "net1",
+                    "subnet",
+                    "192.168.1.0/24",
+                ],
+                "lease",
+                json!("86400"),
+            )
+            .unwrap();
+
+        let result = apply_dhcp_config(&running_config);
+        assert!(
+            result.is_ok(),
+            "Failed to apply DHCP config: {:?}",
+            result.err()
+        );
+    }
+
+    #[test]
+    fn test_apply_dhcp_config_dhcp_disabled() {
+        let mut running_config = RunningConfig::new();
+
+        // Set valid configuration but don't enable DHCP server
+        running_config
+            .add_value_to_node(
+                &[
+                    "service",
+                    "dhcp-server",
+                    "shared-network-name",
+                    "net1",
+                    "subnet",
+                    "192.168.1.0/24",
+                ],
+                "start",
+                json!("192.168.1.10"),
+            )
+            .unwrap();
+        running_config
+            .add_value_to_node(
+                &[
+                    "service",
+                    "dhcp-server",
+                    "shared-network-name",
+                    "net1",
+                    "subnet",
+                    "192.168.1.0/24",
+                ],
+                "stop",
+                json!("192.168.1.100"),
+            )
+            .unwrap();
+
+        let result = apply_dhcp_config(&running_config);
+        assert!(result.is_err(), "Expected error for DHCP server disabled");
+        assert_eq!(
+            result.err().unwrap(),
+            "DHCP server is not enabled. Run 'set service dhcp-server enabled' to apply the configuration."
+        );
+    }
 }

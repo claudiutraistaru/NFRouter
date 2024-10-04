@@ -39,6 +39,24 @@ pub fn set_ip_forwarding(
 
     let sysctl_value = if enable_forwarding { "1" } else { "0" };
 
+    if cfg!(test) {
+        running_config.add_value_to_node(
+            &["system"],
+            "ipforwarding",
+            json!({
+                "enabled": enable_forwarding
+            }),
+        )?;
+        return Ok(format!(
+            "IP forwarding has been {}",
+            if enable_forwarding {
+                "enabled"
+            } else {
+                "disabled"
+            }
+        ));
+    }
+
     // Execute the command to set IP forwarding
     let result = Command::new("sysctl")
         .arg("-w")
@@ -82,4 +100,45 @@ pub fn help_command() -> Vec<(&'static str, &'static str)> {
         "set system ipforwarding <enabled|disabled>",
         "Enable or disable IP forwarding on the system.",
     )]
+}
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::config::RunningConfig;
+    use serde_json::json;
+
+    #[test]
+    fn test_set_ip_forwarding_enabled_success() {
+        let mut running_config = RunningConfig::new();
+
+        // Simulate enabling IP forwarding in test mode
+        let result = set_ip_forwarding("ipforwarding", "enabled", &mut running_config);
+        assert!(result.is_ok(), "Failed with error: {:?}", result.err());
+
+        // Check if the configuration was updated correctly
+        assert_eq!(
+            running_config.get_value_from_node(&["system"], "ipforwarding"),
+            Some(&json!({
+                "enabled": true
+            }))
+        );
+    }
+
+    #[test]
+    fn test_set_ip_forwarding_invalid_option() {
+        let mut running_config = RunningConfig::new();
+
+        // Attempt to set an invalid value for IP forwarding
+        let result = set_ip_forwarding("ipforwarding", "invalid_option", &mut running_config);
+
+        // Ensure it fails with the correct error message
+        assert!(
+            result.is_err(),
+            "Expected failure when setting invalid option for IP forwarding"
+        );
+        assert_eq!(
+            result.unwrap_err(),
+            "Invalid option for IP forwarding. Only 'enabled' is supported."
+        );
+    }
 }
