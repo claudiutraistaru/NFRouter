@@ -221,7 +221,7 @@ pub fn apply_firewall_to_interface(
     let firewall_rules = running_config.config["firewall"]
         .get(rule_set_name)
         .ok_or_else(|| format!("Rule set {} does not exist", rule_set_name))?
-        .clone(); // Clonăm regulile pentru a evita referințe conflictuale
+        .clone();
 
     if firewall_rules.get("default-policy").is_none() {
         return Err(format!(
@@ -248,7 +248,6 @@ pub fn apply_firewall_to_interface(
         .entry("firewall")
         .or_insert_with(|| json!({}));
 
-    // Aplicăm setul de reguli pe interfață în direcția specificată, fără a adăuga `default-policy`
     firewall_config[direction] = json!(rule_set_name);
 
     create_chain(&rule_set_name)?;
