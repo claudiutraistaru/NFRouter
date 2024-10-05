@@ -213,5 +213,6 @@ fn collect_help_lines() -> Vec<(&'static str, &'static str)> {
     help_lines.extend(commands::set::firewall::help_commands());
     help_lines.extend(commands::show::firewall::help_commands());
     help_lines.extend(commands::set::service::help_commands());
+    help_lines.extend(commands::set::protocol::help_commands());
     help_lines
 }

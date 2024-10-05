@@ -20,6 +20,7 @@ pub mod firewall;
 pub mod hostname;
 pub mod interface;
 pub mod nat;
+pub mod protocol;
 pub mod route;
 pub mod service;
 pub mod system;
@@ -34,6 +35,7 @@ use interface::{
     set_interface_zone,
 };
 use nat::set_nat_masquerade;
+use protocol::parse_set_protocol_rip_command;
 use route::set_route;
 use service::parse_service_dhcp_server_command;
 use std::net::IpAddr;
@@ -44,6 +46,7 @@ pub fn parse_set_command(
 ) -> Result<String, String> {
     if parts.len() > 2 {
         match parts[1] {
+            "protocol" => parse_set_protocol_rip_command(parts, running_config),
             "interface" => {
                 let interface = parts[2];
                 if parts.len() >= 4 {

@@ -341,6 +341,27 @@ impl RunningConfig {
     pub fn show_current_config(&self) -> Result<String, String> {
         serde_json::to_string_pretty(&self.config).map_err(|e| e.to_string())
     }
+    pub fn set_value_at_node(&mut self, node_path: &[&str], value: Value) -> Result<(), String> {
+        let mut current_node = &mut self.config;
+
+        for node in node_path.iter() {
+            // Ensure current_node is an object and get the next node in the path
+            if !current_node.is_object() {
+                return Err(format!("Node {} is not an object", node));
+            }
+
+            current_node = current_node
+                .as_object_mut()
+                .unwrap()
+                .entry(node.to_string())
+                .or_insert_with(|| json!({}));
+        }
+
+        // Set the value at the current node
+        *current_node = value;
+        Ok(())
+    }
+
     /// Add a value to a node in the configuration.
     ///
     /// This function allows adding values to existing nodes. It traverses through the configuration
@@ -355,7 +376,6 @@ impl RunningConfig {
         let mut current_node = &mut self.config;
 
         for node in node_path {
-            // Ensure current_node is an object and get the next node in the path
             if !current_node.is_object() {
                 return Err(format!("Node {} is not an object", node));
             }
@@ -367,14 +387,21 @@ impl RunningConfig {
                 .or_insert_with(|| json!({}));
         }
 
-        // Ensure the final node is an object before inserting the key-value pair
-        if let Some(obj) = current_node.as_object_mut() {
-            obj.insert(key.to_string(), value);
+        // If key is empty, set the value directly at the current node
+        if key.is_empty() {
+            *current_node = value;
             Ok(())
         } else {
-            Err(format!("Final node {} is not an object", key))
+            // Ensure the final node is an object before inserting the key-value pair
+            if let Some(obj) = current_node.as_object_mut() {
+                obj.insert(key.to_string(), value);
+                Ok(())
+            } else {
+                Err(format!("Final node {} is not an object", key))
+            }
         }
     }
+
     /// Get a value from a node in the configuration.
     ///
     /// This function traverses through the configuration tree following the provided path and returns the value
@@ -393,6 +420,19 @@ impl RunningConfig {
 
         // Return the value if the final node is an object and contains the key
         current_node.get(key)
+    }
+    /// Get a mutable reference to a value from a node in the configuration.
+    ///
+    /// This function traverses through the configuration tree following the provided path and returns a mutable reference
+    /// to the value associated with the final node if it exists. If any part of the path does not exist, None is returned.
+    pub fn get_value_from_node_mut(&mut self, node_path: &[&str], key: &str) -> Option<&mut Value> {
+        let mut current_node = &mut self.config;
+
+        for node in node_path {
+            current_node = current_node.get_mut(node)?;
+        }
+
+        current_node.get_mut(key)
     }
     /// Remove a value from a node in the configuration.
     ///
