@@ -379,3 +379,115 @@ pub fn parse_set_command(
         Err("Incomplete set command".to_string())
     }
 }
+
+#[cfg(test)]
+mod test {
+    use super::*;
+    use crate::config::RunningConfig;
+    use serde_json::json;
+
+    #[test]
+    fn test_full_configuration() {
+        let mut running_config = RunningConfig::new();
+        set_hostname("testrouter".to_string(), &mut running_config);
+
+        let interface_eth0 = "eth0".to_string();
+        let ip_eth0 = "192.168.1.1/24".to_string();
+        let result = set_interface_ip(interface_eth0.clone(), ip_eth0.clone(), &mut running_config);
+
+        let options = vec!["mtu".to_string(), "1500".to_string()];
+        let result = set_interface_option(interface_eth0.clone(), options, &mut running_config);
+
+        let description_eth0 = "Internal Network";
+        let result =
+            set_interface_description(&interface_eth0, description_eth0, &mut running_config);
+
+        let zone_internal = "internal".to_string();
+        let result = set_interface_zone(
+            interface_eth0.clone(),
+            zone_internal.clone(),
+            &mut running_config,
+        );
+
+        let hw_id = "00:1A:2B:3C:4D:5E".to_string();
+        let options = vec!["hw-id".to_string(), hw_id.clone()];
+        set_interface_option(interface_eth0.clone(), options, &mut running_config);
+
+        let options = vec!["enabled".to_string()];
+        set_interface_option(interface_eth0.clone(), options, &mut running_config);
+
+        set_ip_forwarding("ipforwarding", "enabled", &mut running_config);
+
+        let dhcp_parts = vec![
+            "set",
+            "service",
+            "dhcp-server",
+            "shared-network-name",
+            "net_internal",
+            "subnet",
+            "192.168.1.0/24",
+            "start",
+            "192.168.1.100",
+            "stop",
+            "192.168.1.200",
+            "default-router",
+            "192.168.1.1",
+            "dns-server",
+            "8.8.8.8",
+            "lease",
+            "86400",
+        ];
+        let result = parse_service_dhcp_server_command(&dhcp_parts, &mut running_config);
+
+        let result = parse_service_dhcp_server_command(
+            &["set", "service", "dhcp-server", "enabled"],
+            &mut running_config,
+        );
+
+        let expected_config = json!({
+            "hostname": "testrouter",
+            "interface": {
+                "eth0": {
+                    "address": "192.168.1.1/24",
+                    "description": "Internal Network",
+                    "options": {
+                        "enabled": true,
+                        "hw-id": "00:1A:2B:3C:4D:5E",
+                        "mtu": 1500
+                    },
+                    "zone": "internal"
+                }
+            },
+            "service": {
+                "dhcp-server": {
+                    "enabled": true,
+                    "shared-network-name": {
+                        "net_internal": {
+                            "subnet": {
+                                "192.168.1.0/24": {
+                                    "start": "192.168.1.100",
+                                    "stop": "192.168.1.200",
+                                    "default-router": "192.168.1.1",
+                                    "dns-server": "8.8.8.8",
+                                    "lease": "86400"
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            "system": {
+                "ipforwarding": {
+                    "enabled": true
+                }
+            },
+            "version": "0.1alfa"
+        });
+
+        // Assert that the entire running configuration matches the expected configuration
+        assert_eq!(
+            running_config.config, expected_config,
+            "Full configuration mismatch"
+        );
+    }
+}
