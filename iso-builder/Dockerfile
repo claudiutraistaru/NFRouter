@@ -43,7 +43,7 @@ RUN find /iso_temp -name install_nfrouter.sh -exec ls -l {} \; || echo "install_
 # Copy the dnsmasq and frr apk packages into the ISO
 RUN mkdir -p /iso_temp/apks
 RUN apk update
-RUN apk fetch --output /iso_temp/apks --recursive e2fsprogs sfdisk frr dnsmasq syslinux mtools alpine-base
+RUN apk fetch --output /iso_temp/apks --recursive e2fsprogs sfdisk frr dnsmasq syslinux mtools alpine-base initramfs-generator
 
 # Modify isolinux.cfg to automatically boot and run the installation script
 #RUN sed -i 's/DEFAULT menu.c32/DEFAULT install_nfrouter/' /iso_temp/boot/isolinux/isolinux.cfg && \

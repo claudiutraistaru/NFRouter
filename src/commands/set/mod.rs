@@ -452,7 +452,7 @@ mod test {
         );
 
         // Enable RIP and configure networks and settings
-        set_rip_enabled(&mut running_config).unwrap();
+        //set_rip_enabled(&mut running_config).unwrap();
 
         let rip_network = "192.168.1.0/24";
         set_rip_network(rip_network, &mut running_config).unwrap();
@@ -462,6 +462,7 @@ mod test {
         set_rip_redistribute_connected(&mut running_config).unwrap();
 
         let expected_config = json!({
+            "config-version": "0.1alfa",
             "hostname": "testrouter",
             "interface": {
                 "eth0": {
@@ -495,26 +496,94 @@ mod test {
             },
             "protocol": {
                 "rip": {
-                    "enabled": true,
                     "network": ["192.168.1.0/24"],
                     "version": 2,
-                    "passive-interfaces": ["eth0"],
-                    "redistribute_static": true,
-                    "redistribute_connected": true
+                    "passive-interface": ["eth0"],
+                    "redistribute":{
+                        "static": true,
+                        "connected": true
+                    }
                 }
             },
             "system": {
                 "ipforwarding": {
                     "enabled": true
                 }
-            },
-            "version": "0.1alfa"
+            }
         });
 
         // Assert that the entire running configuration matches the expected configuration
         assert_eq!(
             running_config.config, expected_config,
             "Full configuration mismatch"
+        );
+    }
+
+    #[test]
+    fn test_apply_json_configuration() {
+        // Define the expected configuration in JSON format
+        let expected_config = json!({
+            "config-version": "0.1alfa",
+            "hostname": "testrouter",
+            "interface": {
+                "eth0": {
+                    "address": "192.168.1.1/24",
+                    "description": "Internal Network",
+                    "options": {
+                        "enabled": true,
+                        "hw-id": "00:1A:2B:3C:4D:5E",
+                        "mtu": 1500
+                    },
+                    "zone": "internal"
+                }
+            },
+            "service": {
+                "dhcp-server": {
+                    "enabled": true,
+                    "shared-network-name": {
+                        "net_internal": {
+                            "subnet": {
+                                "192.168.1.0/24": {
+                                    "start": "192.168.1.100",
+                                    "stop": "192.168.1.200",
+                                    "default-router": "192.168.1.1",
+                                    "dns-server": "8.8.8.8",
+                                    "lease": "86400"
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            "protocol": {
+                "rip": {
+                    "network": ["192.168.12.0/24"],
+                    "version": 2,
+                    "passive-interface": ["eth0"],
+                    "redistribute":{
+                        "static": true,
+                        "connected": true
+                    }
+                }
+            },
+            "system": {
+                "ipforwarding": {
+                    "enabled": true
+                }
+            }
+        });
+
+        // Initialize the running configuration
+        let mut running_config = RunningConfig::new();
+        //running_config.config = expected_config.clone(); // Load the JSON into the running configuration
+
+        // Apply the settings to execute the commands from the JSON configuration
+        running_config.apply_settings(Some(&expected_config));
+
+        // Compare the resulting configuration after command execution with the original expected JSON
+        assert_eq!(
+            running_config.config, expected_config,
+            "The resulting configuration does not match the expected configuration"
         );
     }
 }

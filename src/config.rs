@@ -33,7 +33,7 @@ impl RunningConfig {
         } else {
             let mut new_config = RunningConfig {
                 config: json!({
-                    "version": "0.1alfa",
+                    "config-version": "0.1alfa",
                     "interface": {}
                 }),
             };
@@ -53,16 +53,22 @@ impl RunningConfig {
     //This method collects all commands from the configuration, sorts them based on priority,
     //and applies them in order. Enabled commands are applied last.
 
-    pub fn apply_settings(&mut self) {
+    pub fn apply_settings(&mut self, config: Option<&serde_json::Value>) {
         // Clone the config to avoid borrowing self.config while mutably borrowing self
-        let config_clone = self.config.clone();
+        let config_to_apply = if let Some(config) = config {
+            config
+        } else {
+            &self.config.clone()
+        };
+
+        //let config_clone = self.config.clone();
         let mut path = vec![];
         let mut commands: Vec<(i32, String)> = vec![]; // Collect non-enabled commands with priorities
         let mut enabled_commands: Vec<String> = vec![]; // Collect enabled commands separately
 
         // Collect all commands, separating enabled commands
         self.collect_commands(
-            &config_clone,
+            config_to_apply,
             &mut path,
             &mut commands,
             &mut enabled_commands,
@@ -97,7 +103,7 @@ impl RunningConfig {
         match node {
             Value::Object(map) => {
                 for (key, value) in map {
-                    if key == "version" {
+                    if key == "config-version" {
                         continue;
                     }
 

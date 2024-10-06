@@ -75,7 +75,7 @@ There are 2 ways to download and install it:
 - install required packages (at the moment is not handled in the application) frr and dnsmasq
 manually create a /config folder
 
-2. Use the prebuilt iso, which is an Alpine linux version with a custom install script
+2. Use the prebuilt iso, which is an Alpine linux version with a custom install script (At the moment there is no offline method of install, some alpine packages need to be downloaded from the internet)
 - login as root (no password)
 - start /media/cdrom/install_nfrouter.sh
 - follow the prompts

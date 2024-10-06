@@ -65,7 +65,8 @@ fn main() {
     rl.set_helper(Some(helper));
     let mut running_config = RunningConfig::new();
     if args.contains(&"-d".to_string()) {
-        running_config.apply_settings();
+        //The None is passed in order to aply the settings already present in running_config
+        running_config.apply_settings(None);
         // Apply the configurations from the config file
         // The configurations are already applied in RunningConfig::new()
         // So we can simply exit after initializing

@@ -39,17 +39,26 @@ pub fn parse_set_protocol_rip_command(
 ) -> Result<String, String> {
     match parts {
         // Enable RIP protocol
-        ["set", "protocol", "rip", "enabled"] => set_rip_enabled(running_config),
+        //["set", "protocol", "rip", "enabled"] => set_rip_enabled(running_config),
         ["set", "protocol", "rip", "network", network] => set_rip_network(network, running_config),
         ["set", "protocol", "rip", "version", version] => {
             set_rip_version(version.parse::<u8>().unwrap(), running_config)
         }
-        ["set", "protocol", "rip", "version", "passive-interface", interface] => {
+        ["set", "protocol", "rip", "passive-interface", interface] => {
             set_rip_passive_interface(interface, running_config)
         }
         ["set", "protocol", "rip", "distance", distance] => {
             set_rip_distance(distance, running_config)
         }
+
+        ["set", "protocol", "rip", "redistribute", "static"] => {
+            set_rip_redistribute_static(running_config)
+        }
+
+        ["set", "protocol", "rip", "redistribute", "connected"] => {
+            set_rip_redistribute_connected(running_config)
+        }
+
         _ => Err("Invalid protocol command".to_string()),
     }
 }
@@ -109,14 +118,14 @@ pub fn set_rip_network(
     running_config: &mut RunningConfig,
 ) -> Result<String, String> {
     println!("Current running config: {:?}", running_config.config);
-    if running_config
-        .get_value_from_node(&["protocol", "rip"], "enabled")
-        .is_none()
-    {
-        return Err(
-            "RIP protocol is not enabled. Enable it with 'set protocol rip enabled'.".to_string(),
-        );
-    }
+    // if running_config
+    //     .get_value_from_node(&["protocol", "rip"], "enabled")
+    //     .is_none()
+    // {
+    //     return Err(
+    //         "RIP protocol is not enabled. Enable it with 'set protocol rip enabled'.".to_string(),
+    //     );
+    // }
     if running_config
         .get_value_from_node(&["protocol", "rip"], "network")
         .is_none()
@@ -163,14 +172,14 @@ pub fn set_rip_version(version: u8, running_config: &mut RunningConfig) -> Resul
         return Err("Invalid RIP version. Only version 1 or 2 is supported.".to_string());
     }
 
-    if running_config
-        .get_value_from_node(&["protocol", "rip"], "enabled")
-        .is_none()
-    {
-        return Err(
-            "RIP protocol is not enabled. Enable it with 'set protocol rip enabled'.".to_string(),
-        );
-    }
+    // if running_config
+    //     .get_value_from_node(&["protocol", "rip"], "enabled")
+    //     .is_none()
+    // {
+    //     return Err(
+    //         "RIP protocol is not enabled. Enable it with 'set protocol rip enabled'.".to_string(),
+    //     );
+    // }
     if !cfg!(test) {
         let vtysh_result = Command::new("vtysh")
             .arg("-c")
@@ -214,14 +223,14 @@ pub fn set_rip_passive_interface(
     interface: &str,
     running_config: &mut RunningConfig,
 ) -> Result<String, String> {
-    if running_config
-        .get_value_from_node(&["protocol", "rip"], "enabled")
-        .is_none()
-    {
-        return Err(
-            "RIP protocol is not enabled. Enable it with 'set protocol rip enabled'.".to_string(),
-        );
-    }
+    // if running_config
+    //     .get_value_from_node(&["protocol", "rip"], "enabled")
+    //     .is_none()
+    // {
+    //     return Err(
+    //         "RIP protocol is not enabled. Enable it with 'set protocol rip enabled'.".to_string(),
+    //     );
+    // }
 
     if running_config
         .get_value_from_node(&["interface"], interface)
@@ -252,14 +261,14 @@ pub fn set_rip_passive_interface(
     }
 
     if running_config
-        .get_value_from_node(&["protocol", "rip"], "passive-interfaces")
+        .get_value_from_node(&["protocol", "rip"], "passive-interface")
         .is_none()
     {
-        running_config.add_value_to_node(&["protocol", "rip"], "passive-interfaces", json!([]))?;
+        running_config.add_value_to_node(&["protocol", "rip"], "passive-interface", json!([]))?;
     }
 
     let mut passive_interfaces_array = running_config
-        .get_value_from_node(&["protocol", "rip"], "passive-interfaces")
+        .get_value_from_node(&["protocol", "rip"], "passive-interface")
         .and_then(|v| v.as_array().cloned())
         .ok_or("Failed to access passive-interfaces array in the running configuration.")?;
 
@@ -273,7 +282,7 @@ pub fn set_rip_passive_interface(
     passive_interfaces_array.push(json!(interface));
     running_config.add_value_to_node(
         &["protocol", "rip"],
-        "passive-interfaces",
+        "passive-interface",
         json!(passive_interfaces_array),
     )?;
 
@@ -295,14 +304,14 @@ pub fn set_rip_passive_interface(
 
 pub fn set_rip_redistribute_static(running_config: &mut RunningConfig) -> Result<String, String> {
     // Check if RIP is enabled
-    if running_config
-        .get_value_from_node(&["protocol", "rip"], "enabled")
-        .is_none()
-    {
-        return Err(
-            "RIP protocol is not enabled. Enable it with 'set protocol rip enabled'.".to_string(),
-        );
-    }
+    // if running_config
+    //     .get_value_from_node(&["protocol", "rip"], "enabled")
+    //     .is_none()
+    // {
+    //     return Err(
+    //         "RIP protocol is not enabled. Enable it with 'set protocol rip enabled'.".to_string(),
+    //     );
+    // }
 
     // Execute vtysh command to configure RIP redistribution (only if not in test mode)
     if !cfg!(test) {
@@ -325,7 +334,11 @@ pub fn set_rip_redistribute_static(running_config: &mut RunningConfig) -> Result
     }
 
     // Update the running configuration
-    running_config.add_value_to_node(&["protocol", "rip"], "redistribute_static", json!(true))?;
+    running_config.add_value_to_node(
+        &["protocol", "rip", "redistribute"],
+        "static",
+        json!(true),
+    )?;
 
     Ok("RIP configured to redistribute static routes.".to_string())
 }
@@ -334,14 +347,14 @@ pub fn set_rip_redistribute_connected(
     running_config: &mut RunningConfig,
 ) -> Result<String, String> {
     // Check if RIP is enabled
-    if running_config
-        .get_value_from_node(&["protocol", "rip"], "enabled")
-        .is_none()
-    {
-        return Err(
-            "RIP protocol is not enabled. Enable it with 'set protocol rip enabled'.".to_string(),
-        );
-    }
+    // if running_config
+    //     .get_value_from_node(&["protocol", "rip"], "enabled")
+    //     .is_none()
+    // {
+    //     return Err(
+    //         "RIP protocol is not enabled. Enable it with 'set protocol rip enabled'.".to_string(),
+    //     );
+    // }
 
     // Check if connected routes are already being redistributed
     if running_config
@@ -373,8 +386,8 @@ pub fn set_rip_redistribute_connected(
 
     // Update the running configuration to indicate that connected routes are being redistributed
     running_config.add_value_to_node(
-        &["protocol", "rip"],
-        "redistribute_connected",
+        &["protocol", "rip", "redistribute"],
+        "connected",
         json!(true),
     )?;
 
@@ -481,14 +494,11 @@ pub fn set_rip_default_information_originate(
 pub fn help_commands() -> Vec<(&'static str, &'static str)> {
     vec![
         (
-            "set protocol rip enabled",
-            "Enable the RIP routing protocol.",
-        ),
-        (
             "set protocol rip network <network-ip/prefix>",
             "Add a network to the RIP routing protocol.",
         ),
         (
+            //will add also 12
             "set protocol rip version <1|2>",
             "Set the RIP version (1 or 2).",
         ),
@@ -528,40 +538,40 @@ mod tests {
     use crate::config::RunningConfig;
     use serde_json::json;
 
-    #[test]
-    fn test_set_rip_enabled_success() {
-        let mut running_config = RunningConfig::new();
+    // #[test]
+    // fn test_set_rip_enabled_success() {
+    //     let mut running_config = RunningConfig::new();
 
-        // Call the function to enable RIP protocol
-        let result = set_rip_enabled(&mut running_config);
+    //     // Call the function to enable RIP protocol
+    //     let result = set_rip_enabled(&mut running_config);
 
-        // Check if the result is successful
-        assert!(result.is_ok(), "Failed to enable RIP: {:?}", result.err());
+    //     // Check if the result is successful
+    //     assert!(result.is_ok(), "Failed to enable RIP: {:?}", result.err());
 
-        // Ensure the running config is updated to reflect that RIP is enabled
-        assert_eq!(
-            running_config.get_value_from_node(&["protocol", "rip"], "enabled"),
-            Some(&json!(true)),
-            "RIP protocol was not enabled in the running configuration"
-        );
-    }
+    //     // Ensure the running config is updated to reflect that RIP is enabled
+    //     assert_eq!(
+    //         running_config.get_value_from_node(&["protocol", "rip"], "enabled"),
+    //         Some(&json!(true)),
+    //         "RIP protocol was not enabled in the running configuration"
+    //     );
+    // }
 
-    #[test]
-    fn test_set_rip_enabled_already_enabled() {
-        let mut running_config = RunningConfig::new();
+    // #[test]
+    // fn test_set_rip_enabled_already_enabled() {
+    //     let mut running_config = RunningConfig::new();
 
-        // Simulate that RIP is already enabled in the running config
-        running_config.add_value_to_node(&["protocol", "rip"], "enabled", json!(true));
-        // Call the function to enable RIP protocol again
-        let result = set_rip_enabled(&mut running_config);
+    //     // Simulate that RIP is already enabled in the running config
+    //     running_config.add_value_to_node(&["protocol", "rip"], "enabled", json!(true));
+    //     // Call the function to enable RIP protocol again
+    //     let result = set_rip_enabled(&mut running_config);
 
-        // Check if it returns that RIP is already enabled
-        assert_eq!(
-            result.unwrap(),
-            "RIP protocol is already enabled.",
-            "RIP should return already enabled message"
-        );
-    }
+    //     // Check if it returns that RIP is already enabled
+    //     assert_eq!(
+    //         result.unwrap(),
+    //         "RIP protocol is already enabled.",
+    //         "RIP should return already enabled message"
+    //     );
+    // }
 
     #[test]
     fn test_set_rip_network_success() {
@@ -610,39 +620,38 @@ mod tests {
     }
 
     #[test]
-    fn test_set_rip_network_rip_not_enabled() {
-        let mut running_config = RunningConfig::new();
+    // fn test_set_rip_network_rip_not_enabled() {
+    //     let mut running_config = RunningConfig::new();
 
-        let network = "192.168.1.0/24";
-        let result = set_rip_network(network, &mut running_config);
+    //     let network = "192.168.1.0/24";
+    //     let result = set_rip_network(network, &mut running_config);
 
-        assert_eq!(
-            result.unwrap_err(),
-            "RIP protocol is not enabled. Enable it with 'set protocol rip enabled'.",
-            "RIP should return an error when adding network without enabling RIP"
-        );
-    }
+    //     assert_eq!(
+    //         result.unwrap_err(),
+    //         "RIP protocol is not enabled. Enable it with 'set protocol rip enabled'.",
+    //         "RIP should return an error when adding network without enabling RIP"
+    //     );
+    // }
 
-    #[test]
-    fn test_parse_set_protocol_rip_command_enable() {
-        let mut running_config = RunningConfig::new();
+    // #[test]
+    // fn test_parse_set_protocol_rip_command_enable() {
+    //     let mut running_config = RunningConfig::new();
 
-        let parts = vec!["set", "protocol", "rip", "enabled"];
-        let result = parse_set_protocol_rip_command(&parts, &mut running_config);
+    //     let parts = vec!["set", "protocol", "rip", "enabled"];
+    //     let result = parse_set_protocol_rip_command(&parts, &mut running_config);
 
-        assert!(
-            result.is_ok(),
-            "Failed to parse and enable RIP: {:?}",
-            result.err()
-        );
+    //     assert!(
+    //         result.is_ok(),
+    //         "Failed to parse and enable RIP: {:?}",
+    //         result.err()
+    //     );
 
-        assert_eq!(
-            running_config.get_value_from_node(&["protocol", "rip"], "enabled"),
-            Some(&json!(true)),
-            "RIP protocol was not enabled in the running configuration"
-        );
-    }
-
+    //     assert_eq!(
+    //         running_config.get_value_from_node(&["protocol", "rip"], "enabled"),
+    //         Some(&json!(true)),
+    //         "RIP protocol was not enabled in the running configuration"
+    //     );
+    // }
     #[test]
     fn test_parse_set_protocol_rip_command_network() {
         let mut running_config = RunningConfig::new();
@@ -725,30 +734,30 @@ mod tests {
         );
     }
 
-    #[test]
-    fn test_set_rip_version_rip_not_enabled() {
-        let mut running_config = RunningConfig::new();
+    // #[test]
+    // fn test_set_rip_version_rip_not_enabled() {
+    //     let mut running_config = RunningConfig::new();
 
-        let result = set_rip_version(1, &mut running_config);
+    //     let result = set_rip_version(1, &mut running_config);
 
-        assert!(
-            result.is_err(),
-            "Expected an error for RIP not being enabled"
-        );
-        assert_eq!(
-            result.unwrap_err(),
-            "RIP protocol is not enabled. Enable it with 'set protocol rip enabled'.",
-            "Unexpected error message for RIP not enabled"
-        );
-    }
+    //     assert!(
+    //         result.is_err(),
+    //         "Expected an error for RIP not being enabled"
+    //     );
+    //     assert_eq!(
+    //         result.unwrap_err(),
+    //         "RIP protocol is not enabled. Enable it with 'set protocol rip enabled'.",
+    //         "Unexpected error message for RIP not enabled"
+    //     );
+    // }
     #[test]
     fn test_set_rip_passive_interface_success() {
         let mut running_config = RunningConfig::new();
 
         // First enable RIP in the configuration
-        running_config
-            .add_value_to_node(&["protocol", "rip"], "enabled", json!(true))
-            .unwrap();
+        // running_config
+        //     .add_value_to_node(&["protocol", "rip"], "enabled", json!(true))
+        //     .unwrap();
 
         running_config
             .add_value_to_node(&["interface"], "eth0", json!({}))
@@ -763,7 +772,7 @@ mod tests {
         );
 
         let passive_interfaces = running_config
-            .get_value_from_node(&["protocol", "rip"], "passive-interfaces")
+            .get_value_from_node(&["protocol", "rip"], "passive-interface")
             .unwrap();
         assert!(
             passive_interfaces
@@ -774,27 +783,26 @@ mod tests {
         );
     }
 
-    #[test]
-    fn test_set_rip_passive_interface_rip_not_enabled() {
-        let mut running_config = RunningConfig::new();
+    //#[test]
+    // fn test_set_rip_passive_interface_rip_not_enabled() {
+    //     let mut running_config = RunningConfig::new();
 
-        running_config
-            .add_value_to_node(&["interface"], "eth0", json!({}))
-            .unwrap();
+    //     running_config
+    //         .add_value_to_node(&["interface"], "eth0", json!({}))
+    //         .unwrap();
 
-        let result = set_rip_passive_interface("eth0", &mut running_config);
+    //     let result = set_rip_passive_interface("eth0", &mut running_config);
 
-        assert!(
-            result.is_err(),
-            "Expected an error for RIP not being enabled"
-        );
-        assert_eq!(
-            result.unwrap_err(),
-            "RIP protocol is not enabled. Enable it with 'set protocol rip enabled'.",
-            "Unexpected error message for RIP not enabled"
-        );
-    }
-
+    //     assert!(
+    //         result.is_err(),
+    //         "Expected an error for RIP not being enabled"
+    //     );
+    //     assert_eq!(
+    //         result.unwrap_err(),
+    //         "RIP protocol is not enabled. Enable it with 'set protocol rip enabled'.",
+    //         "Unexpected error message for RIP not enabled"
+    //     );
+    // }
     #[test]
     fn test_set_rip_passive_interface_interface_not_configured() {
         let mut running_config = RunningConfig::new();
@@ -829,7 +837,7 @@ mod tests {
             .unwrap();
 
         running_config
-            .add_value_to_node(&["protocol", "rip"], "passive-interfaces", json!(["eth0"]))
+            .add_value_to_node(&["protocol", "rip"], "passive-interface", json!(["eth0"]))
             .unwrap();
 
         let result = set_rip_passive_interface("eth0", &mut running_config);
@@ -848,9 +856,9 @@ mod tests {
     fn test_set_rip_redistribute_static_success() {
         let mut running_config = RunningConfig::new();
 
-        running_config
-            .add_value_to_node(&["protocol", "rip"], "enabled", json!(true))
-            .unwrap();
+        // running_config
+        //     .add_value_to_node(&["protocol", "rip"], "enabled", json!(true))
+        //     .unwrap();
         // Call the function to redistribute static routes into RIP
         let result = set_rip_redistribute_static(&mut running_config);
 
@@ -861,24 +869,24 @@ mod tests {
         );
 
         assert_eq!(
-            running_config.get_value_from_node(&["protocol", "rip"], "redistribute_static"),
+            running_config.get_value_from_node(&["protocol", "rip", "redistribute"], "static"),
             Some(&json!(true)),
             "Static route redistribution was not enabled in the RIP configuration"
         );
     }
 
-    #[test]
-    fn test_set_rip_redistribute_static_rip_not_enabled() {
-        let mut running_config = RunningConfig::new();
+    // #[test]
+    // fn test_set_rip_redistribute_static_rip_not_enabled() {
+    //     let mut running_config = RunningConfig::new();
 
-        let result = set_rip_redistribute_static(&mut running_config);
+    //     let result = set_rip_redistribute_static(&mut running_config);
 
-        assert!(result.is_err(), "Expected error when RIP is not enabled");
-        assert_eq!(
-            result.err().unwrap(),
-            "RIP protocol is not enabled. Enable it with 'set protocol rip enabled'."
-        );
-    }
+    //     assert!(result.is_err(), "Expected error when RIP is not enabled");
+    //     assert_eq!(
+    //         result.err().unwrap(),
+    //         "RIP protocol is not enabled. Enable it with 'set protocol rip enabled'."
+    //     );
+    // }
 
     #[test]
     fn test_set_rip_redistribute_static_already_set() {
@@ -887,7 +895,11 @@ mod tests {
         running_config
             .add_value_to_node(&["protocol", "rip"], "enabled", json!(true))
             .unwrap();
-        running_config.add_value_to_node(&["protocol", "rip"], "redistribute_static", json!(true));
+        running_config.add_value_to_node(
+            &["protocol", "rip", "redistribute"],
+            "static",
+            json!(true),
+        );
 
         let result = set_rip_redistribute_static(&mut running_config);
 
@@ -901,9 +913,9 @@ mod tests {
     fn test_set_rip_redistribute_connected_success() {
         let mut running_config = RunningConfig::new();
 
-        running_config
-            .add_value_to_node(&["protocol", "rip"], "enabled", json!(true))
-            .unwrap();
+        // running_config
+        //     .add_value_to_node(&["protocol", "rip"], "enabled", json!(true))
+        //     .unwrap();
 
         let result = set_rip_redistribute_connected(&mut running_config);
 
@@ -914,24 +926,24 @@ mod tests {
         );
 
         assert_eq!(
-            running_config.get_value_from_node(&["protocol", "rip"], "redistribute_connected"),
+            running_config.get_value_from_node(&["protocol", "rip", "redistribute"], "connected"),
             Some(&json!(true)),
             "Connected route redistribution was not enabled in the RIP configuration"
         );
     }
 
-    #[test]
-    fn test_set_rip_redistribute_connected_rip_not_enabled() {
-        let mut running_config = RunningConfig::new();
+    // #[test]
+    // fn test_set_rip_redistribute_connected_rip_not_enabled() {
+    //     let mut running_config = RunningConfig::new();
 
-        let result = set_rip_redistribute_connected(&mut running_config);
+    //     let result = set_rip_redistribute_connected(&mut running_config);
 
-        assert!(result.is_err(), "Expected error when RIP is not enabled");
-        assert_eq!(
-            result.err().unwrap(),
-            "RIP protocol is not enabled. Enable it with 'set protocol rip enabled'."
-        );
-    }
+    //     assert!(result.is_err(), "Expected error when RIP is not enabled");
+    //     assert_eq!(
+    //         result.err().unwrap(),
+    //         "RIP protocol is not enabled. Enable it with 'set protocol rip enabled'."
+    //     );
+    // }
 
     #[test]
     fn test_set_rip_redistribute_connected_already_set() {
@@ -941,7 +953,11 @@ mod tests {
             .add_value_to_node(&["protocol", "rip"], "enabled", json!(true))
             .unwrap();
         running_config
-            .add_value_to_node(&["protocol", "rip"], "redistribute_connected", json!(true))
+            .add_value_to_node(
+                &["protocol", "rip", "redistribute"],
+                "connected",
+                json!(true),
+            )
             .unwrap();
 
         let result = set_rip_redistribute_connected(&mut running_config);

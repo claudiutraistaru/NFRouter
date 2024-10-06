@@ -63,19 +63,22 @@ pub fn parse_service_dhcp_server_command(
                             [network]["subnet"][subnet]["lease"] = json!(lease);
                         idx += 2;
                     }
-                    "start"
-                        if idx + 1 < options.len()
-                            && idx + 2 < options.len()
-                            && options[idx + 2] == "stop"
-                            && idx + 3 < options.len() =>
-                    {
+                    "start" if idx + 1 < options.len() => {
                         let start = options[idx + 1];
-                        let stop = options[idx + 3];
+                        //let stop = options[idx + 3];
                         running_config.config["service"]["dhcp-server"]["shared-network-name"]
                             [network]["subnet"][subnet]["start"] = json!(start);
+                        //running_config.config["service"]["dhcp-server"]["shared-network-name"]
+                        //  [network]["subnet"][subnet]["stop"] = json!(stop);
+                        idx += 2;
+                    }
+                    "stop" if idx + 1 < options.len() => {
+                        let stop = options[idx + 1];
+                        //let stop = options[idx + 3];
+
                         running_config.config["service"]["dhcp-server"]["shared-network-name"]
                             [network]["subnet"][subnet]["stop"] = json!(stop);
-                        idx += 4;
+                        idx += 2;
                     }
                     _ => {
                         return Err(format!(
