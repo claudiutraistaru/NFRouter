@@ -36,7 +36,7 @@ mod config;
 use crate::completer::{CommandCompleter, MyHelper};
 use commands::help::{build_help_message, build_help_message_vec, help_for_context};
 use commands::show::hostname::show_hostname_command;
-use commands::show::route::show_routes;
+use commands::show::routes::show_routes;
 use config::RunningConfig;
 use std::env;
 
@@ -102,6 +102,7 @@ fn main() {
                         "set" => handle_set_command(&parts, &mut running_config),
                         "unset" => handle_unset_command(&parts, &mut running_config),
                         "show" => handle_show_command(&parts, &mut running_config),
+                        "exec" => handle_exec_command(&parts),
                         "save" => {
                             if parts.len() == 2
                                 && parts[0] == "save"
@@ -167,6 +168,12 @@ fn handle_show_command(parts: &[&str], running_config: &mut RunningConfig) {
         Err(err) => eprintln!("Error: {}", err),
     }
 }
+fn handle_exec_command(parts: &[&str]) {
+    match crate::commands::exec::command::parse_exec_command(parts) {
+        Ok(output) => println!("{}", output),
+        Err(err) => println!("Error: {}", err),
+    }
+}
 
 /// Prints help for a given context.
 ///
@@ -202,7 +209,7 @@ fn collect_help_lines() -> Vec<(&'static str, &'static str)> {
     help_lines.extend(commands::set::hostname::help_commands());
     help_lines.extend(commands::set::interface::help_commands());
     help_lines.extend(commands::set::route::help_command());
-    help_lines.extend(commands::show::route::help_command());
+    help_lines.extend(commands::show::routes::help_command());
     help_lines.extend(commands::show::currentconfig::help_command());
     help_lines.extend(commands::unset::interface::help_commands());
     help_lines.extend(commands::show::hostname::help_command());
@@ -214,5 +221,6 @@ fn collect_help_lines() -> Vec<(&'static str, &'static str)> {
     help_lines.extend(commands::show::firewall::help_commands());
     help_lines.extend(commands::set::service::help_commands());
     help_lines.extend(commands::set::protocol::help_commands());
+    help_lines.extend(commands::exec::command::help_commands());
     help_lines
 }

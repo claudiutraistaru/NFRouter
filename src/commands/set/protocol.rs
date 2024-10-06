@@ -47,6 +47,9 @@ pub fn parse_set_protocol_rip_command(
         ["set", "protocol", "rip", "version", "passive-interface", interface] => {
             set_rip_passive_interface(interface, running_config)
         }
+        ["set", "protocol", "rip", "distance", distance] => {
+            set_rip_distance(distance, running_config)
+        }
         _ => Err("Invalid protocol command".to_string()),
     }
 }
@@ -377,6 +380,104 @@ pub fn set_rip_redistribute_connected(
 
     Ok("Connected routes redistributed into RIP.".to_string())
 }
+
+pub fn set_rip_distance(
+    distance: &str,
+    running_config: &mut RunningConfig,
+) -> Result<String, String> {
+    // Step 1: Parse the distance value and handle errors
+    let distance: u32 = match distance.parse() {
+        Ok(val) => val,
+        Err(_) => return Err("Invalid distance value. It should be a number.".to_string()),
+    };
+
+    if cfg!(test) {
+        running_config.add_value_to_node(&["protocol", "rip"], "distance", json!(distance));
+        return Ok(format!(
+            "RIP administrative distance set to {} and applied in FRR.",
+            distance
+        ));
+    }
+
+    let output = Command::new("vtysh")
+        .arg("-c")
+        .arg("configure terminal")
+        .arg("-c")
+        .arg("router rip")
+        .arg("-c")
+        .arg(format!("distance {}", distance))
+        .output();
+
+    match output {
+        Ok(output) if output.status.success() => {
+            // Return success message if the command executed successfully
+            running_config.add_value_to_node(&["protocol", "rip"], "distance", json!(distance));
+            Ok(format!(
+                "RIP administrative distance set to {} and applied in FRR.",
+                distance
+            ))
+        }
+        Ok(output) => {
+            // If the command failed, return the error from the stderr output
+            Err(format!(
+                "Failed to execute FRR command: {}",
+                String::from_utf8_lossy(&output.stderr)
+            ))
+        }
+        Err(e) => {
+            // If an error occurred while invoking the command
+            Err(format!("Error executing FRR command: {}", e))
+        }
+    }
+}
+
+pub fn set_rip_default_information_originate(
+    running_config: &mut RunningConfig,
+) -> Result<String, String> {
+    // Step 1: Modify the running configuration to set "default-information originate"
+    if cfg!(test) {
+        running_config.add_value_to_node(
+            &["protocol", "rip"],
+            "default-information",
+            json!("originate"),
+        );
+        return Ok("RIP default-information originate set and executed in FRR.".to_string());
+    }
+    // Step 2: Execute the corresponding FRR command using vtysh
+    let output = Command::new("vtysh")
+        .arg("-c")
+        .arg("configure terminal")
+        .arg("-c")
+        .arg("router rip")
+        .arg("-c")
+        .arg("default-information originate")
+        .output();
+
+    // Step 3: Check for errors during FRR command execution
+    match output {
+        Ok(output) if output.status.success() => {
+            running_config.add_value_to_node(
+                &["protocol", "rip"],
+                "default-information",
+                json!("originate"),
+            );
+            // Return success message if command executed successfully
+            Ok("RIP default-information originate set and executed in FRR.".to_string())
+        }
+        Ok(output) => {
+            // If command failed, return error with the stderr output
+            Err(format!(
+                "Failed to execute FRR command: {}",
+                String::from_utf8_lossy(&output.stderr)
+            ))
+        }
+        Err(e) => {
+            // If an error occurred while invoking the command
+            Err(format!("Error executing FRR command: {}", e))
+        }
+    }
+}
+
 pub fn help_commands() -> Vec<(&'static str, &'static str)> {
     vec![
         (
@@ -849,6 +950,157 @@ mod tests {
             result.is_ok(),
             "Failed to redistribute connected routes: {:?}",
             result.err()
+        );
+    }
+    #[test]
+    fn test_set_rip_distance_success() {
+        let mut running_config = RunningConfig::new();
+        let distance = "120";
+
+        let result = set_rip_distance(distance, &mut running_config);
+
+        // Verificăm dacă funcția returnează un rezultat Ok
+        assert!(
+            result.is_ok(),
+            "Expected success but got error: {:?}",
+            result.err()
+        );
+
+        // Verificăm dacă valoarea distanței a fost setată corect în configurație
+        assert_eq!(
+            running_config.get_value_from_node(&["protocol", "rip"], "distance"),
+            Some(&json!(120)),
+            "RIP distance was not set correctly"
+        );
+    }
+
+    #[test]
+    fn test_set_rip_distance_invalid_value() {
+        let mut running_config = RunningConfig::new();
+        let distance = "invalid_value"; // Valoare invalidă pentru distanță
+
+        let result = set_rip_distance(distance, &mut running_config);
+
+        // Verificăm dacă funcția returnează o eroare pentru valoare invalidă
+        assert!(result.is_err(), "Expected error but got success");
+        assert_eq!(
+            result.err().unwrap(),
+            "Invalid distance value. It should be a number.",
+            "Unexpected error message"
+        );
+    }
+
+    #[test]
+    fn test_set_rip_distance_negative_value() {
+        let mut running_config = RunningConfig::new();
+        let distance = "-10"; // Valoare negativă pentru distanță
+
+        let result = set_rip_distance(distance, &mut running_config);
+
+        // Verificăm dacă funcția returnează o eroare pentru valoare negativă
+        assert!(result.is_err(), "Expected error but got success");
+        assert_eq!(
+            result.err().unwrap(),
+            "Invalid distance value. It should be a number.",
+            "Unexpected error message for negative number"
+        );
+    }
+
+    #[test]
+    fn test_set_rip_distance_float_value() {
+        let mut running_config = RunningConfig::new();
+        let distance = "10.5"; // Valoare decimală pentru distanță
+
+        let result = set_rip_distance(distance, &mut running_config);
+
+        // Verificăm dacă funcția returnează o eroare pentru valoare zecimală
+        assert!(result.is_err(), "Expected error but got success");
+        assert_eq!(
+            result.err().unwrap(),
+            "Invalid distance value. It should be a number.",
+            "Unexpected error message for float number"
+        );
+    }
+    #[test]
+    fn test_set_rip_default_information_originate_success() {
+        let mut running_config = RunningConfig::new();
+
+        // Call the function
+        let result = set_rip_default_information_originate(&mut running_config);
+
+        // Verificăm dacă funcția returnează un rezultat Ok
+        assert!(
+            result.is_ok(),
+            "Expected success but got error: {:?}",
+            result.err()
+        );
+
+        // Verificăm dacă valoarea a fost setată corect în configurație
+        assert_eq!(
+            running_config.get_value_from_node(&["protocol", "rip"], "default-information"),
+            Some(&json!("originate")),
+            "RIP default-information originate was not set correctly"
+        );
+    }
+
+    #[test]
+    fn test_set_rip_default_information_originate_updates_existing_config() {
+        let mut running_config = RunningConfig::new();
+
+        // Set an initial value for "default-information"
+        running_config.add_value_to_node(
+            &["protocol", "rip"],
+            "default-information",
+            json!("none"),
+        );
+
+        // Call the function
+        let result = set_rip_default_information_originate(&mut running_config);
+
+        // Verificăm dacă funcția returnează un rezultat Ok
+        assert!(
+            result.is_ok(),
+            "Expected success but got error: {:?}",
+            result.err()
+        );
+
+        // Verificăm dacă valoarea a fost actualizată corect în configurație
+        assert_eq!(
+            running_config.get_value_from_node(&["protocol", "rip"], "default-information"),
+            Some(&json!("originate")),
+            "RIP default-information originate was not updated correctly"
+        );
+    }
+
+    #[test]
+    fn test_set_rip_default_information_originate_no_unexpected_changes() {
+        let mut running_config = RunningConfig::new();
+
+        // Set another value in the config to ensure it is not affected
+        running_config.add_value_to_node(&["protocol", "rip"], "distance", json!(120));
+
+        // Call the function
+        let result = set_rip_default_information_originate(&mut running_config);
+
+        // Verificăm dacă funcția returnează un rezultat Ok
+        assert!(
+            result.is_ok(),
+            "Expected success but got error: {:?}",
+            result.err()
+        );
+
+        // Verificăm dacă valoarea default-information a fost setată corect
+        assert_eq!(
+            running_config.get_value_from_node(&["protocol", "rip"], "default-information"),
+            Some(&json!("originate")),
+            "RIP default-information originate was not set correctly"
+        );
+
+        // Verificăm dacă restul configurației a rămas neafectată
+        assert_eq!(
+            running_config.get_value_from_node(&["protocol", "rip"], "distance"),
+            Some(&json!(120)),
+            "Other configuration values should not be changed"
         );
     }
 }

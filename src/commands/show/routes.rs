@@ -37,5 +37,5 @@ pub fn show_routes(parts: &[&str]) -> Result<String, String> {
     }
 }
 pub fn help_command() -> Vec<(&'static str, &'static str)> {
-    vec![("show route", "Show routes")]
+    vec![("show routes", "Show routes")]
 }
