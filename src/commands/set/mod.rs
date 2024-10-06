@@ -20,6 +20,7 @@ pub mod firewall;
 pub mod hostname;
 pub mod interface;
 pub mod nat;
+pub mod protocol;
 pub mod route;
 pub mod service;
 pub mod system;
@@ -34,6 +35,8 @@ use interface::{
     set_interface_zone,
 };
 use nat::set_nat_masquerade;
+use protocol::parse_set_protocol_rip_command;
+use protocol::*;
 use route::set_route;
 use service::parse_service_dhcp_server_command;
 use std::net::IpAddr;
@@ -44,6 +47,7 @@ pub fn parse_set_command(
 ) -> Result<String, String> {
     if parts.len() > 2 {
         match parts[1] {
+            "protocol" => parse_set_protocol_rip_command(parts, running_config),
             "interface" => {
                 let interface = parts[2];
                 if parts.len() >= 4 {
@@ -389,21 +393,23 @@ mod test {
     #[test]
     fn test_full_configuration() {
         let mut running_config = RunningConfig::new();
+
+        // Set hostname
         set_hostname("testrouter".to_string(), &mut running_config);
 
+        // Configure interface eth0
         let interface_eth0 = "eth0".to_string();
         let ip_eth0 = "192.168.1.1/24".to_string();
-        let result = set_interface_ip(interface_eth0.clone(), ip_eth0.clone(), &mut running_config);
+        set_interface_ip(interface_eth0.clone(), ip_eth0.clone(), &mut running_config);
 
         let options = vec!["mtu".to_string(), "1500".to_string()];
-        let result = set_interface_option(interface_eth0.clone(), options, &mut running_config);
+        set_interface_option(interface_eth0.clone(), options, &mut running_config);
 
         let description_eth0 = "Internal Network";
-        let result =
-            set_interface_description(&interface_eth0, description_eth0, &mut running_config);
+        set_interface_description(&interface_eth0, description_eth0, &mut running_config);
 
         let zone_internal = "internal".to_string();
-        let result = set_interface_zone(
+        set_interface_zone(
             interface_eth0.clone(),
             zone_internal.clone(),
             &mut running_config,
@@ -416,8 +422,10 @@ mod test {
         let options = vec!["enabled".to_string()];
         set_interface_option(interface_eth0.clone(), options, &mut running_config);
 
+        // Enable IP forwarding
         set_ip_forwarding("ipforwarding", "enabled", &mut running_config);
 
+        // Configure DHCP
         let dhcp_parts = vec![
             "set",
             "service",
@@ -437,12 +445,21 @@ mod test {
             "lease",
             "86400",
         ];
-        let result = parse_service_dhcp_server_command(&dhcp_parts, &mut running_config);
-
-        let result = parse_service_dhcp_server_command(
+        parse_service_dhcp_server_command(&dhcp_parts, &mut running_config);
+        parse_service_dhcp_server_command(
             &["set", "service", "dhcp-server", "enabled"],
             &mut running_config,
         );
+
+        // Enable RIP and configure networks and settings
+        set_rip_enabled(&mut running_config).unwrap();
+
+        let rip_network = "192.168.1.0/24";
+        set_rip_network(rip_network, &mut running_config).unwrap();
+        set_rip_version(2, &mut running_config).unwrap();
+        set_rip_passive_interface("eth0", &mut running_config).unwrap();
+        set_rip_redistribute_static(&mut running_config).unwrap();
+        set_rip_redistribute_connected(&mut running_config).unwrap();
 
         let expected_config = json!({
             "hostname": "testrouter",
@@ -474,6 +491,16 @@ mod test {
                             }
                         }
                     }
+                }
+            },
+            "protocol": {
+                "rip": {
+                    "enabled": true,
+                    "network": ["192.168.1.0/24"],
+                    "version": 2,
+                    "passive-interfaces": ["eth0"],
+                    "redistribute_static": true,
+                    "redistribute_connected": true
                 }
             },
             "system": {

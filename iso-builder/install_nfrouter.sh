@@ -18,11 +18,12 @@
 #
 
 
-ifconfig eth0 up
-udhcpc eth0
+# ifconfig eth0 up
+# udhcpc eth0
 
 #install required packages 
-apk add e2fsprogs sfdisk frr dnsmasq
+#apk add e2fsprogs sfdisk frr dnsmasq
+apk add --allow-untrusted --force-non-repository --initdb --cache-dir=/apk_cache --repositories-file=/dev/null /apks/dnsmasq.apk /apks/frr.apk /apks/e2fsprogs.apk /apks/sfdisk.apk /apks/mtools /apks/initramfs-generator /apks/syslinux
 
 # Set the installation target (e.g., /dev/sda)
 TARGET_DISK="/dev/sda"
