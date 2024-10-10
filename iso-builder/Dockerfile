@@ -3,10 +3,10 @@
 FROM alpine:latest
 
 # Install necessary tools
-RUN apk add --no-cache wget xorriso syslinux 
+RUN apk add --no-cache wget xorriso syslinux e2fsprogs
 
 # Download the standard Alpine ISO
-RUN wget -O /alpine-standard.iso https://dl-cdn.alpinelinux.org/alpine/latest-stable/releases/x86_64/alpine-standard-3.20.0-x86_64.iso
+RUN wget -O /alpine-standard.iso https://dl-cdn.alpinelinux.org/alpine/latest-stable/releases/x86_64/alpine-standard-3.20.2-x86_64.iso
 
 # Create directories for mounting and extraction
 #RUN mkdir /mnt/iso /mnt/newiso /overlay
@@ -41,9 +41,7 @@ RUN chmod +x /iso_temp/install_nfrouter.sh
 # Verify bootloader files
 RUN find /iso_temp -name install_nfrouter.sh -exec ls -l {} \; || echo "install_nfrouter.sh not found"
 # Copy the dnsmasq and frr apk packages into the ISO
-RUN mkdir -p /iso_temp/apks
-RUN apk update
-RUN apk fetch --output /iso_temp/apks --recursive e2fsprogs sfdisk frr dnsmasq syslinux mtools alpine-base initramfs-generator
+
 
 # Modify isolinux.cfg to automatically boot and run the installation script
 #RUN sed -i 's/DEFAULT menu.c32/DEFAULT install_nfrouter/' /iso_temp/boot/isolinux/isolinux.cfg && \
