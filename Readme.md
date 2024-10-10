@@ -1,4 +1,6 @@
 # NFRouter (alpha version)
+<p style="text-align:center;">Made with :heart: from Romania.</p>
+
 ![image](docs/images/NFRouter.png)
 
 ## Table of Contents
@@ -28,6 +30,7 @@
 - [x] Very Basic Firewall Setup Options
 - [x] Very Basic Network Address Translation (NAT) Options
 - [x] Very Basic VLAN Support
+- [ ] Release a basic image for GNS3 with application template
 - [ ] Add Contribution Guidelines , pull requests will be handled
 - [ ] Cleanup code (debug will be handled how it should be :))
 - [ ] Automated testing for commands and config, without being executed on Linux (in progress)
