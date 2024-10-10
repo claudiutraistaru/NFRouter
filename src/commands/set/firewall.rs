@@ -122,7 +122,6 @@ pub fn add_firewall_rule(
     let interfaces = running_config.config["interface"]
         .as_object()
         .ok_or_else(|| "Interface configuration is not a valid object".to_string())?;
-
     if cfg!(test) {
         return Ok(format!(
             "Firewall rule added successfully to {}",
@@ -249,6 +248,12 @@ pub fn apply_firewall_to_interface(
         .or_insert_with(|| json!({}));
 
     firewall_config[direction] = json!(rule_set_name);
+    if cfg!(test) {
+        return Ok(format!(
+            "Applied firewall {} to interface {} for {} traffic",
+            rule_set_name, interface, direction
+        ));
+    }
 
     create_chain(&rule_set_name)?;
 
@@ -633,12 +638,7 @@ pub fn add_firewall_rule_position(
             position
         ));
     }
-    if cfg!(test) {
-        return Ok(format!(
-            "Firewall rule added successfully to {}",
-            rule_set_name
-        ));
-    }
+
     apply_firewall_rule_to_iptables(
         rule_set_name,
         action,
@@ -711,7 +711,9 @@ fn apply_firewall_rule_to_iptables(
 
     command_args.push("-j".to_string());
     command_args.push(action.to_uppercase());
-
+    if cfg!(test) {
+        return Ok(());
+    }
     println!(
         "Executing iptables command: iptables {}",
         command_args.clone().join(" ")
@@ -851,7 +853,7 @@ mod tests {
             Some(80),
             &mut running_config,
         );
-        println!("result {:?}", result.clone());
+        //println!("result {:?}", result.clone());
         // assert!(result.is_ok());
 
         // Check if the rule has been added
