@@ -22,34 +22,34 @@
 > [!WARNING]
 > Please keep in mind that NFRouter is still an Alpha version and under active development and therefore full backward compatibility  is not guaranteed before reaching v1.0.0.
 
-## Provisional Roadmap
-
-- [x] Current Configuration Saving
-- [x] Current Configuration Load at Startup
-- [x] Very Basic Interface Setup Options
-- [x] Very Basic Firewall Setup Options
-- [x] Very Basic Network Address Translation (NAT) Options
-- [x] Very Basic VLAN Support
-- [ ] Release a basic image for GNS3 with application template
-- [ ] Add Contribution Guidelines , pull requests will be handled
-- [ ] Cleanup code (debug will be handled how it should be :))
-- [ ] Automated testing for commands and config, without being executed on Linux (in progress)
-- [ ] Write proper documentation
-- [ ] Improve command line help and auto-complete
+- [x] Save Current Configuration
+- [x] Load Current Configuration at Startup
+- [x] Basic Interface Setup Options
+- [x] Basic Firewall Setup Options
+- [x] Basic Network Address Translation (NAT) Options
+- [x] Basic VLAN Support
+- [ ] Release Basic Image for GNS3 with Application Template
+- [ ] Add Contribution Guidelines and Handle Pull Requests
+- [ ] Perform Code Cleanup (Proper Debug Handling)
+- [ ] Develop Automated Testing for Commands and Configurations (without Execution on Linux) (in progress)
+- [ ] Write Comprehensive Documentation
+- [ ] Enhance Command Line Help and Auto-Complete Features
 - [ ] Advanced Interface Setup Options
 - [ ] Advanced Firewall Setup Options
 - [ ] Advanced Network Address Translation (NAT) Options
 - [ ] Advanced VLAN Support
-- [ ] ISO Automated Build Process (in progress)
-- [ ] Docker-Based Integration Testing (in progress)
-- [ ] VPN Setup (e.g., OpenVPN, WireGuard)
-- [ ] VPN-Based Firewall Rules
-- [ ] Dynamic Routing Protocols (FRRouting)
-- [ ] Role-Based Access Control (RBAC)
-- [ ] High Availability (HA) and Redundancy
-- [ ] Monitoring and Logging (e.g., syslog, nftables logs)
-- [ ] Optional Web-Based Management UI
-- [ ] All that was not added in the roadmap :)
+- [ ] Implement ISO Automated Build Process (in progress)
+- [ ] Conduct Docker-Based Integration Testing (in progress)
+- [ ] Implement VPN Configuration (e.g., OpenVPN, WireGuard)
+- [ ] Configure VPN-Based Firewall Rules
+- [ ] RIP Support
+- [ ] OSPF Support
+- [ ] BGP support
+- [ ] Implement Role-Based Access Control (RBAC)
+- [ ] Enable High Availability (HA) and Redundancy Features
+- [ ] Set Up Monitoring and Logging (e.g., syslog, nftables logs)
+- [ ] Develop Optional Web-Based Management UI
+- [ ] Address Remaining Items Not Included in the Roadmap
 
 ## What is NFRouter  
 NFRouter is an open-source network routing application in RUST designed to simplify network configuration and management. It is available both as a single executable file and as a ready-to-install ISO image (the ISO image will be available) for x86 and ARM architectures. 
