@@ -58,6 +58,9 @@ pub fn parse_set_protocol_rip_command(
         ["set", "protocol", "rip", "redistribute", "connected"] => {
             set_rip_redistribute_connected(running_config)
         }
+        ["set", "protocol", "rip", "authentication", authentication] => {
+            set_rip_authentication(authentication, None, None, running_config)
+        }
 
         _ => Err("Invalid protocol command".to_string()),
     }
@@ -72,34 +75,34 @@ pub fn parse_set_protocol_rip_command(
 ///
 /// * `running_config`: A mutable reference to the running configuration.
 
-pub fn set_rip_enabled(running_config: &mut RunningConfig) -> Result<String, String> {
-    if running_config.get_value_from_node(&["protocol", "rip"], "enabled")
-        == Some(&serde_json::Value::Bool(true))
-    {
-        return Ok("RIP protocol is already enabled.".to_string());
-    }
+// pub fn set_rip_enabled(running_config: &mut RunningConfig) -> Result<String, String> {
+//     if running_config.get_value_from_node(&["protocol", "rip"], "enabled")
+//         == Some(&serde_json::Value::Bool(true))
+//     {
+//         return Ok("RIP protocol is already enabled.".to_string());
+//     }
 
-    if !cfg!(test) {
-        // Execute the vtysh command to enable RIP
-        let vtysh_result = Command::new("vtysh")
-            .arg("-c")
-            .arg("configure terminal")
-            .arg("-c")
-            .arg("router rip")
-            .output()
-            .map_err(|e| format!("Failed to execute vtysh command: {}", e))?;
+//     if !cfg!(test) {
+//         // Execute the vtysh command to enable RIP
+//         let vtysh_result = Command::new("vtysh")
+//             .arg("-c")
+//             .arg("configure terminal")
+//             .arg("-c")
+//             .arg("router rip")
+//             .output()
+//             .map_err(|e| format!("Failed to execute vtysh command: {}", e))?;
 
-        if !vtysh_result.status.success() {
-            return Err(format!(
-                "Failed to enable RIP protocol: {}",
-                String::from_utf8_lossy(&vtysh_result.stderr)
-            ));
-        }
-    }
-    running_config.add_value_to_node(&["protocol", "rip"], "enabled", json!(true));
+//         if !vtysh_result.status.success() {
+//             return Err(format!(
+//                 "Failed to enable RIP protocol: {}",
+//                 String::from_utf8_lossy(&vtysh_result.stderr)
+//             ));
+//         }
+//     }
+//     running_config.add_value_to_node(&["protocol", "rip"], "enabled", json!(true));
 
-    Ok("RIP protocol enabled.".to_string())
-}
+//     Ok("RIP protocol enabled.".to_string())
+// }
 /// Set the RIP network.
 ///
 /// This function sets a new network for the RIP protocol. If the RIP protocol is not enabled,
@@ -491,6 +494,74 @@ pub fn set_rip_default_information_originate(
     }
 }
 
+pub fn set_rip_authentication(
+    mode: &str,
+    key_chain: Option<&str>,
+    password: Option<&str>,
+    running_config: &mut RunningConfig,
+) -> Result<String, String> {
+    if mode != "text" && mode != "md5" {
+        return Err(
+            "Invalid RIP authentication mode. Only 'text' or 'md5' are supported.".to_string(),
+        );
+    }
+
+    if let Some(password) = password {
+        if password.len() > 16 {
+            return Err("Authentication string must be shorter than 16 characters.".to_string());
+        }
+    }
+    #[cfg(not(test))]
+    {
+        let mut vtysh_command = Command::new("vtysh");
+        vtysh_command.arg("-c").arg("configure terminal");
+        vtysh_command.arg("-c").arg("router rip");
+        vtysh_command
+            .arg("-c")
+            .arg(format!("ip rip authentication mode {}", mode));
+
+        if let Some(key_chain) = key_chain {
+            vtysh_command
+                .arg("-c")
+                .arg(format!("ip rip authentication key-chain {}", key_chain));
+        }
+
+        if let Some(password) = password {
+            vtysh_command
+                .arg("-c")
+                .arg(format!("ip rip authentication string {}", password));
+        }
+
+        let auth_result = vtysh_command.output();
+        match auth_result {
+            Ok(output) => {
+                if !output.status.success() {
+                    return Err(format!(
+                        "Failed to set RIP authentication: {}",
+                        String::from_utf8_lossy(&output.stderr)
+                    ));
+                }
+            }
+            Err(e) => return Err(format!("Failed to execute vtysh command: {}", e)),
+        }
+    }
+
+    // Update the running configuration
+    let mut auth_config = json!({ "mode": mode });
+    if let Some(key_chain) = key_chain {
+        auth_config["key_chain"] = json!(key_chain);
+    }
+    if let Some(password) = password {
+        auth_config["password"] = json!(password);
+    }
+    running_config.add_value_to_node(&["protocol", "rip"], "authentication", auth_config);
+
+    Ok(format!(
+        "RIP authentication set to mode: {}, key_chain: {:?}, password: {:?}",
+        mode, key_chain, password
+    ))
+}
+
 pub fn help_commands() -> Vec<(&'static str, &'static str)> {
     vec![
         (
@@ -529,6 +600,10 @@ pub fn help_commands() -> Vec<(&'static str, &'static str)> {
         (
             "set protocol rip default-information originate",
             "Advertise a default route in RIP.",
+        ),
+        (
+            "set protocol rip authentication <text|md5> [key-chain <KEY-CHAIN>] [string <STRING>]",
+            "Set the RIP authentication mode, with an optional key-chain or password.",
         ),
     ]
 }
@@ -1117,6 +1192,109 @@ mod tests {
             running_config.get_value_from_node(&["protocol", "rip"], "distance"),
             Some(&json!(120)),
             "Other configuration values should not be changed"
+        );
+    }
+
+    #[test]
+    fn test_set_rip_authentication_md5() {
+        let mut running_config = RunningConfig { config: json!({}) };
+        let result = set_rip_authentication("md5", None, None, &mut running_config);
+        assert!(result.is_ok());
+        assert_eq!(
+            result.unwrap(),
+            "RIP authentication set to mode: md5, key_chain: None, password: None"
+        );
+
+        let auth = running_config
+            .config
+            .get("protocol")
+            .unwrap()
+            .get("rip")
+            .unwrap()
+            .get("authentication")
+            .unwrap();
+        assert_eq!(auth["mode"], "md5");
+    }
+
+    #[test]
+    fn test_set_rip_authentication_invalid() {
+        let mut running_config = RunningConfig { config: json!({}) };
+        let result = set_rip_authentication("invalid", None, None, &mut running_config);
+        assert!(result.is_err());
+        assert_eq!(
+            result.unwrap_err(),
+            "Invalid RIP authentication mode. Only 'text' or 'md5' are supported."
+        );
+    }
+
+    #[test]
+    fn test_set_rip_authentication_text() {
+        let mut running_config = RunningConfig { config: json!({}) };
+        let result = set_rip_authentication("text", None, Some("simplepass"), &mut running_config);
+        assert!(result.is_ok());
+        assert_eq!(
+            result.unwrap(),
+            "RIP authentication set to mode: text, key_chain: None, password: Some(\"simplepass\")"
+        );
+
+        let auth = running_config
+            .config
+            .get("protocol")
+            .unwrap()
+            .get("rip")
+            .unwrap()
+            .get("authentication")
+            .unwrap();
+        assert_eq!(auth["mode"], "text");
+        assert_eq!(auth["password"], "simplepass");
+    }
+
+    #[test]
+    fn test_set_rip_authentication_md5_with_key_chain() {
+        let mut running_config = RunningConfig { config: json!({}) };
+        let result = set_rip_authentication("md5", Some("test-chain"), None, &mut running_config);
+        assert!(result.is_ok());
+        assert_eq!(
+            result.unwrap(),
+            "RIP authentication set to mode: md5, key_chain: Some(\"test-chain\"), password: None"
+        );
+
+        let auth = running_config
+            .config
+            .get("protocol")
+            .unwrap()
+            .get("rip")
+            .unwrap()
+            .get("authentication")
+            .unwrap();
+        assert_eq!(auth["mode"], "md5");
+        assert_eq!(auth["key_chain"], "test-chain");
+    }
+
+    #[test]
+    fn test_set_rip_authentication_invalid_mode() {
+        let mut running_config = RunningConfig { config: json!({}) };
+        let result = set_rip_authentication("invalid", None, None, &mut running_config);
+        assert!(result.is_err());
+        assert_eq!(
+            result.unwrap_err(),
+            "Invalid RIP authentication mode. Only 'text' or 'md5' are supported."
+        );
+    }
+
+    #[test]
+    fn test_set_rip_authentication_password_too_long() {
+        let mut running_config = RunningConfig { config: json!({}) };
+        let result = set_rip_authentication(
+            "text",
+            None,
+            Some("thispasswordiswaytoolong"),
+            &mut running_config,
+        );
+        assert!(result.is_err());
+        assert_eq!(
+            result.unwrap_err(),
+            "Authentication string must be shorter than 16 characters."
         );
     }
 }
