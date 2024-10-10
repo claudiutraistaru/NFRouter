@@ -17,13 +17,23 @@
 # along with this program. If not, see <https://www.gnu.org/licenses/>.
 #
 
+ifconfig eth0 up
+udhcpc
+REPO_MAIN="http://dl-cdn.alpinelinux.org/alpine/latest-stable/main"
+REPO_COMMUNITY="http://dl-cdn.alpinelinux.org/alpine/latest-stable/community"
 
-# ifconfig eth0 up
-# udhcpc eth0
+# Backup the existing repositories file (just in case)
+cp /etc/apk/repositories /etc/apk/repositories.backup
 
+# Add the repositories to the /etc/apk/repositories file
+echo "Adding repositories to /etc/apk/repositories..."
+echo "$REPO_MAIN" | tee /etc/apk/repositories
+echo "$REPO_COMMUNITY" | tee -a /etc/apk/repositories
+
+apk fetch
 #install required packages 
-#apk add e2fsprogs sfdisk frr dnsmasq
-apk add --allow-untrusted --force-non-repository --initdb --cache-dir=/apk_cache --repositories-file=/dev/null /apks/dnsmasq.apk /apks/frr.apk /apks/e2fsprogs.apk /apks/sfdisk.apk /apks/mtools /apks/initramfs-generator /apks/syslinux
+apk add e2fsprogs sfdisk frr dnsmasq
+#apk add --allow-untrusted --force-non-repository --initdb --cache-dir=/apk_cache --repositories-file=/dev/null /apks/dnsmasq.apk /apks/frr.apk /apks/e2fsprogs.apk /apks/sfdisk.apk /apks/mtools /apks/initramfs-generator /apks/syslinux
 
 # Set the installation target (e.g., /dev/sda)
 TARGET_DISK="/dev/sda"
@@ -57,15 +67,66 @@ chmod +x /mnt/usr/local/bin/nfrouter
 #create config directory
 mkdir /mnt/config
 
-# Configure nfrouter to start on boot
+# # Configure nfrouter to start on boot
 cat <<EOS > /mnt/etc/local.d/nfrouter.start
 #!/bin/sh
-/usr/local/bin/nfrouter -d&
+/usr/local/bin/nfrouter -d
 EOS
 chmod +x /mnt/etc/local.d/nfrouter.start
-
-# Enable local service
 chroot /mnt rc-update add local default
+
+
+#tee /mnt/etc/init.d/nfrouter <<EOS
+# cat <<EOS > /mnt/etc/init.d/nfrouter
+# #!/sbin/openrc-run
+
+# description="NFRouter Service"
+
+# command="/usr/local/bin/nfrouter"
+# command_args="-d"
+
+# depend() {
+#     after net
+#     after bootmisc
+#     after local
+#     after frr
+#     after dnsmasq
+# }
+
+# start() {
+#     ebegin "Running NFRouter configuration"
+#     start-stop-daemon --start --exec $command -- $command_args
+#     eend $? "Failed to run NFRouter configuration"
+# }
+
+# stop() {
+#     ebegin "Stopping NFRouter"
+#     eend 0
+# }
+# EOS
+# chmod +x /mnt/etc/init.d/nfrouter
+# chroot /mnt rc-update add nfrouter default
+
+
+# REPO_FILE="/mnt/etc/apk/repositories"
+# echo "Enabling the Alpine community repository in $REPO_FILE..."
+# sed -i 's/^#\(.*\/community\)/\1/' $REPO_FILE
+# echo "Community repository enabled successfully."
+chroot /mnt apk fetch
+chroot /mnt apk add dnsmasq frr
+
+DAEMONS_FILE="/etc/frr/daemons"
+if [ ! -f "$DAEMONS_FILE" ]; then
+    echo "Error: $DAEMONS_FILE not found!"
+    exit 1
+fi
+
+sed -i 's/^ripd=no/ripd=yes/' $DAEMONS_FILE
+sed -i 's/^ripngd=no/ripngd=yes/' $DAEMONS_FILE
+
+
+chroot /mnt rc-update add frr default
+chroot /mnt rc-update add dnsmasq default
 
 echo "Installation complete. Rebooting..."
 #reboot
