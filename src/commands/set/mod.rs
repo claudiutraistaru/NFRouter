@@ -198,10 +198,19 @@ pub fn parse_set_command(
                 let hostname = parts[2].to_string();
                 set_hostname(hostname, running_config)
             }
-            "routes" if parts.len() == 5 => {
+            "route" if parts.len() >= 5 => {
                 let destination = parts[2];
                 let via = parts[4];
-                set_route(destination, via, running_config)
+                let distance = if parts.len() > 6 && parts[5] == "distance" {
+                    Some(
+                        parts[6]
+                            .parse()
+                            .map_err(|_| "Invalid distance value".to_string())?,
+                    )
+                } else {
+                    None
+                };
+                set_route(destination, via, distance, running_config)
             }
             "system" if parts.len() == 4 && parts[2] == "ipforwarding" => {
                 set_ip_forwarding(parts[2], parts[3], running_config)
@@ -534,7 +543,10 @@ mod test {
                         "hw-id": "00:1A:2B:3C:4D:5E",
                         "mtu": 1500
                     },
-                    "zone": "internal"
+                    "zone": "internal",
+                    "firewall": {
+                        "in": "test-rule-set"
+                    }
                 }
             },
             "service": {
@@ -560,10 +572,55 @@ mod test {
                     "network": ["192.168.12.0/24"],
                     "version": 2,
                     "passive-interface": ["eth0"],
-                    "redistribute":{
+                    "redistribute": {
                         "static": true,
                         "connected": true
                     }
+                }
+            },
+            "firewall": {
+                "test-rule-set": {
+                    "default-policy": "drop",
+                    "rules": [
+                        {
+                            "action": "accept",
+                            "source": "192.168.0.1",
+                            "destination": "192.168.0.2",
+                            "protocol": "tcp",
+                            "port": 80
+                        },
+                        {
+                            "action": "accept",
+                            "destination": "192.168.0.2",
+                            "protocol": "tcp",
+                            "port": 443
+                        },
+                        {
+                            "action": "accept",
+                            "source": "192.168.0.3",
+                            "protocol": "udp",
+                            "port": 53
+                        },
+                        {
+                            "action": "accept",
+                            "source": "192.168.0.4",
+                            "destination": "192.168.0.5",
+                            "protocol": "icmp"
+                        },
+                        {
+                            "action": "accept",
+                            "protocol": "tcp",
+                            "port": 22
+                        },
+                        {
+                            "action": "accept",
+                            "source": "192.168.0.6"
+                        },
+                        {
+                            "action": "accept",
+                            "destination": "192.168.0.7"
+                        }
+                    ]
                 }
             },
             "system": {

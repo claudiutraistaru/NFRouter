@@ -33,8 +33,8 @@ impl RunningConfig {
         } else {
             let mut new_config = RunningConfig {
                 config: json!({
-                    "config-version": "0.1alfa",
-                    "interface": {}
+                   "config-version": "0.1alfa",
+                   "interface": {}
                 }),
             };
 
@@ -43,7 +43,8 @@ impl RunningConfig {
 
             new_config
         };
-        //running_config.apply_settings();
+
+        //running_config.apply_settings(None);
 
         running_config
     }
@@ -208,6 +209,9 @@ impl RunningConfig {
                 } else {
                     is_valid_rule = false;
                 }
+                if let Some(Value::String(source)) = rule_obj.get("source") {
+                    cmd.push_str(&format!(" source {}", source));
+                }
 
                 if let Some(Value::String(destination)) = rule_obj.get("destination") {
                     cmd.push_str(&format!(" destination {}", destination));
@@ -339,6 +343,11 @@ impl RunningConfig {
         fs::write(filename, json).map_err(|e| e.to_string())
     }
 
+    pub fn load_from_file_in_daemon(filename: &str) -> Result<Value, String> {
+        let content = fs::read_to_string(filename).map_err(|e| e.to_string())?;
+        let config: Value = serde_json::from_str(&content).map_err(|e| e.to_string())?;
+        Ok(config)
+    }
     pub fn load_from_file(filename: &str) -> Result<Self, String> {
         let content = fs::read_to_string(filename).map_err(|e| e.to_string())?;
         let config: Value = serde_json::from_str(&content).map_err(|e| e.to_string())?;

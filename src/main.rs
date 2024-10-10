@@ -38,8 +38,8 @@ use commands::help::{build_help_message, build_help_message_vec, help_for_contex
 use commands::show::hostname::show_hostname_command;
 use commands::show::routes::show_routes;
 use config::RunningConfig;
+use serde_json::{json, Value};
 use std::env;
-
 //This variable is needed to avoid duplicate running of firewall apply when running with -d (apply whole config)
 //This is not the optimal solution but I do not have another for now
 lazy_static! {
@@ -65,12 +65,26 @@ fn main() {
     rl.set_helper(Some(helper));
     let mut running_config = RunningConfig::new();
     if args.contains(&"-d".to_string()) {
-        //The None is passed in order to aply the settings already present in running_config
-        running_config.apply_settings(None);
-        // Apply the configurations from the config file
-        // The configurations are already applied in RunningConfig::new()
-        // So we can simply exit after initializing
-        println!("Configurations applied from config file. Exiting.");
+        // Path to the configuration file
+        // Initialize an empty RunningConfig
+        let mut running_config = RunningConfig { config: json!({}) };
+
+        // Path to the configuration file
+        let config_file_path = "/config/currentconfig";
+
+        // Load the configuration from the file as JSON
+        match RunningConfig::load_from_file_in_daemon(config_file_path) {
+            Ok(json_config) => {
+                // Apply the configurations from the loaded JSON
+                running_config.apply_settings(Some(&json_config));
+                println!("Configurations applied from config file. Exiting.");
+            }
+            Err(e) => {
+                eprintln!("Error loading configuration from file: {}", e);
+                return;
+            }
+        }
+
         return;
     }
     println!("Enter 'exit' to quit.");
