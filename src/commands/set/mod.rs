@@ -461,14 +461,15 @@ mod test {
         );
 
         // Enable RIP and configure networks and settings
-        //set_rip_enabled(&mut running_config).unwrap();
-
         let rip_network = "192.168.1.0/24";
         set_rip_network(rip_network, &mut running_config).unwrap();
         set_rip_version(2, &mut running_config).unwrap();
         set_rip_passive_interface("eth0", &mut running_config).unwrap();
         set_rip_redistribute_static(&mut running_config).unwrap();
         set_rip_redistribute_connected(&mut running_config).unwrap();
+        set_rip_send_version("1", &mut running_config).unwrap();
+        set_rip_receive_version("2", &mut running_config).unwrap();
+        set_rip_distance(&200.to_string(), &mut running_config).unwrap();
 
         let expected_config = json!({
             "config-version": "0.1alfa",
@@ -508,10 +509,13 @@ mod test {
                     "network": ["192.168.1.0/24"],
                     "version": 2,
                     "passive-interface": ["eth0"],
-                    "redistribute":{
+                    "redistribute": {
                         "static": true,
                         "connected": true
-                    }
+                    },
+                    "send-version": 1,
+                    "receive-version": 2,
+                    "distance": 200
                 }
             },
             "system": {
@@ -575,7 +579,10 @@ mod test {
                     "redistribute": {
                         "static": true,
                         "connected": true
-                    }
+                    },
+                    "send-version": 1,
+                    "receive-version": 2,
+                    "distance": 200
                 }
             },
             "firewall": {
@@ -632,7 +639,6 @@ mod test {
 
         // Initialize the running configuration
         let mut running_config = RunningConfig::new();
-        //running_config.config = expected_config.clone(); // Load the JSON into the running configuration
 
         // Apply the settings to execute the commands from the JSON configuration
         running_config.apply_settings(Some(&expected_config));

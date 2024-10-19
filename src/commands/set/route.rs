@@ -109,6 +109,9 @@ pub fn set_route(
 pub fn help_command() -> Vec<(&'static str, &'static str)> {
     vec![
         ("set route", "Configure static routes using FRR"),
+        ("set route <destination>", "Add a static route to the specified destination."),
+        ("set route <destination> via", "Add or replace a static route to the specified destination with a gateway (via)."),
+        ("set route <destination> via <gateway>", "Add or replace a static route to the specified destination via the given gateway."),
         ("set route <destination> via <gateway> [distance <value>]", "Add or replace a static route to the specified destination via the given gateway with an optional administrative distance."),
     ]
 }

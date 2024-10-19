@@ -18,6 +18,7 @@
  */
 use crate::config::RunningConfig;
 use libc;
+use regex::Regex;
 use serde_json::json;
 use std::process::Command;
 
@@ -50,59 +51,24 @@ pub fn parse_set_protocol_rip_command(
         ["set", "protocol", "rip", "distance", distance] => {
             set_rip_distance(distance, running_config)
         }
-
         ["set", "protocol", "rip", "redistribute", "static"] => {
             set_rip_redistribute_static(running_config)
         }
-
         ["set", "protocol", "rip", "redistribute", "connected"] => {
             set_rip_redistribute_connected(running_config)
         }
         ["set", "protocol", "rip", "authentication", authentication] => {
             set_rip_authentication(authentication, None, None, running_config)
         }
-
+        ["set", "protocol", "rip", "send-version", version] => {
+            set_rip_send_version(version, running_config)
+        }
+        ["set", "protocol", "rip", "receive-version", version] => {
+            set_rip_receive_version(version, running_config)
+        }
         _ => Err("Invalid protocol command".to_string()),
     }
 }
-/// Sets the RIP protocol to enabled.
-///
-/// If the RIP protocol is already enabled, a success message is returned. Otherwise,
-/// the running configuration is updated and the `vtysh` command is executed to enable
-/// the RIP protocol.
-///
-/// # Parameters
-///
-/// * `running_config`: A mutable reference to the running configuration.
-
-// pub fn set_rip_enabled(running_config: &mut RunningConfig) -> Result<String, String> {
-//     if running_config.get_value_from_node(&["protocol", "rip"], "enabled")
-//         == Some(&serde_json::Value::Bool(true))
-//     {
-//         return Ok("RIP protocol is already enabled.".to_string());
-//     }
-
-//     if !cfg!(test) {
-//         // Execute the vtysh command to enable RIP
-//         let vtysh_result = Command::new("vtysh")
-//             .arg("-c")
-//             .arg("configure terminal")
-//             .arg("-c")
-//             .arg("router rip")
-//             .output()
-//             .map_err(|e| format!("Failed to execute vtysh command: {}", e))?;
-
-//         if !vtysh_result.status.success() {
-//             return Err(format!(
-//                 "Failed to enable RIP protocol: {}",
-//                 String::from_utf8_lossy(&vtysh_result.stderr)
-//             ));
-//         }
-//     }
-//     running_config.add_value_to_node(&["protocol", "rip"], "enabled", json!(true));
-
-//     Ok("RIP protocol enabled.".to_string())
-// }
 /// Set the RIP network.
 ///
 /// This function sets a new network for the RIP protocol. If the RIP protocol is not enabled,
@@ -117,18 +83,26 @@ pub fn parse_set_protocol_rip_command(
 /// A `Result` containing a success message if the operation was successful, or an error message otherwise.
 
 pub fn set_rip_network(
-    network: &str,
+    network_or_interface: &str,
     running_config: &mut RunningConfig,
 ) -> Result<String, String> {
     println!("Current running config: {:?}", running_config.config);
-    // if running_config
-    //     .get_value_from_node(&["protocol", "rip"], "enabled")
-    //     .is_none()
-    // {
-    //     return Err(
-    //         "RIP protocol is not enabled. Enable it with 'set protocol rip enabled'.".to_string(),
-    //     );
-    // }
+
+    // Determine if the input is a network (IP with prefix) or an interface
+    let is_network = Regex::new(r"^(\d{1,3}\.){3}\d{1,3}/\d{1,2}$")
+        .unwrap()
+        .is_match(network_or_interface);
+    let is_interface = Regex::new(r"^[a-zA-Z0-9\-]+$")
+        .unwrap()
+        .is_match(network_or_interface);
+
+    if !is_network && !is_interface {
+        return Err(format!(
+            "Invalid input: {}. It must be a network in CIDR format or a valid interface name.",
+            network_or_interface
+        ));
+    }
+
     if running_config
         .get_value_from_node(&["protocol", "rip"], "network")
         .is_none()
@@ -141,33 +115,45 @@ pub fn set_rip_network(
         .and_then(|v| v.as_array_mut())
         .ok_or("Failed to access networks array in the running configuration.")?;
 
-    if networks_array.contains(&json!(network)) {
-        return Ok(format!("Network {} is already added to RIP.", network));
+    if networks_array.contains(&json!(network_or_interface)) {
+        return Ok(format!(
+            "Network {} is already added to RIP.",
+            network_or_interface
+        ));
     }
 
-    networks_array.push(json!(network));
+    networks_array.push(json!(network_or_interface));
 
     if !cfg!(test) {
+        // Determine the correct vtysh command
+        let vtysh_command = if is_network {
+            format!("network {}", network_or_interface)
+        } else if is_interface {
+            format!("network interface {}", network_or_interface)
+        } else {
+            return Err("Invalid input for RIP configuration.".to_string());
+        };
+
         let vtysh_result = Command::new("vtysh")
             .arg("-c")
             .arg("configure terminal")
             .arg("-c")
             .arg("router rip")
             .arg("-c")
-            .arg(format!("network {}", network.to_string()))
+            .arg(vtysh_command)
             .output()
             .map_err(|e| format!("Failed to execute vtysh command: {}", e))?;
 
         if !vtysh_result.status.success() {
             return Err(format!(
-                "Failed to add network {} to RIP: {}",
-                network,
+                "Failed to add {} to RIP: {}",
+                network_or_interface,
                 String::from_utf8_lossy(&vtysh_result.stderr)
             ));
         }
     }
 
-    Ok(format!("Network {} added to RIP.", network))
+    Ok(format!("{} added to RIP.", network_or_interface))
 }
 
 pub fn set_rip_version(version: u8, running_config: &mut RunningConfig) -> Result<String, String> {
@@ -175,14 +161,6 @@ pub fn set_rip_version(version: u8, running_config: &mut RunningConfig) -> Resul
         return Err("Invalid RIP version. Only version 1 or 2 is supported.".to_string());
     }
 
-    // if running_config
-    //     .get_value_from_node(&["protocol", "rip"], "enabled")
-    //     .is_none()
-    // {
-    //     return Err(
-    //         "RIP protocol is not enabled. Enable it with 'set protocol rip enabled'.".to_string(),
-    //     );
-    // }
     if !cfg!(test) {
         let vtysh_result = Command::new("vtysh")
             .arg("-c")
@@ -226,15 +204,6 @@ pub fn set_rip_passive_interface(
     interface: &str,
     running_config: &mut RunningConfig,
 ) -> Result<String, String> {
-    // if running_config
-    //     .get_value_from_node(&["protocol", "rip"], "enabled")
-    //     .is_none()
-    // {
-    //     return Err(
-    //         "RIP protocol is not enabled. Enable it with 'set protocol rip enabled'.".to_string(),
-    //     );
-    // }
-
     if running_config
         .get_value_from_node(&["interface"], interface)
         .is_none()
@@ -306,16 +275,6 @@ pub fn set_rip_passive_interface(
 /// A `Result` containing a success message if the operation was successful, or an error message otherwise.
 
 pub fn set_rip_redistribute_static(running_config: &mut RunningConfig) -> Result<String, String> {
-    // Check if RIP is enabled
-    // if running_config
-    //     .get_value_from_node(&["protocol", "rip"], "enabled")
-    //     .is_none()
-    // {
-    //     return Err(
-    //         "RIP protocol is not enabled. Enable it with 'set protocol rip enabled'.".to_string(),
-    //     );
-    // }
-
     // Execute vtysh command to configure RIP redistribution (only if not in test mode)
     if !cfg!(test) {
         let vtysh_result = Command::new("vtysh")
@@ -349,16 +308,6 @@ pub fn set_rip_redistribute_static(running_config: &mut RunningConfig) -> Result
 pub fn set_rip_redistribute_connected(
     running_config: &mut RunningConfig,
 ) -> Result<String, String> {
-    // Check if RIP is enabled
-    // if running_config
-    //     .get_value_from_node(&["protocol", "rip"], "enabled")
-    //     .is_none()
-    // {
-    //     return Err(
-    //         "RIP protocol is not enabled. Enable it with 'set protocol rip enabled'.".to_string(),
-    //     );
-    // }
-
     // Check if connected routes are already being redistributed
     if running_config
         .get_value_from_node(&["protocol", "rip"], "redistribute_connected")
@@ -511,8 +460,7 @@ pub fn set_rip_authentication(
             return Err("Authentication string must be shorter than 16 characters.".to_string());
         }
     }
-    #[cfg(not(test))]
-    {
+    if !cfg!(test) {
         let mut vtysh_command = Command::new("vtysh");
         vtysh_command.arg("-c").arg("configure terminal");
         vtysh_command.arg("-c").arg("router rip");
@@ -562,11 +510,271 @@ pub fn set_rip_authentication(
     ))
 }
 
+/// Set the RIP send version for a specific interface.
+///
+/// This function sets the version of RIP packets to send for a particular interface.
+/// The `VERSION` can be 1, 2, or both (1 2).
+///
+/// # Parameters
+///
+/// * `interface`: The name of the interface.
+/// * `version`: The RIP version to send (1, 2, or both).
+/// * `running_config`: A mutable reference to the running configuration.
+///
+/// # Returns
+///
+/// A `Result` containing a success message if the operation was successful, or an error message otherwise.
+pub fn set_rip_send_version(
+    version: &str,
+    running_config: &mut RunningConfig,
+) -> Result<String, String> {
+    if version != "1" && version != "2" && version != "1 2" {
+        return Err("Invalid RIP send version. Only '1', '2', or '1 2' are supported.".to_string());
+    }
+
+    if !cfg!(test) {
+        let vtysh_result = Command::new("vtysh")
+            .arg("-c")
+            .arg("configure terminal")
+            .arg("-c")
+            .arg("-c")
+            .arg(format!("ip rip send version {}", version))
+            .output()
+            .map_err(|e| format!("Failed to execute vtysh command: {}", e))?;
+
+        if !vtysh_result.status.success() {
+            return Err(format!(
+                "Failed to set RIP send version {} : {}",
+                version,
+                String::from_utf8_lossy(&vtysh_result.stderr)
+            ));
+        }
+    }
+    let version_value = if version == "1" || version == "2" || version == "1 2" {
+        json!(version.parse::<u8>().unwrap())
+    } else {
+        json!(version) // This handles the "1 2" case
+    };
+
+    running_config.add_value_to_node(&["protocol", "rip"], "send-version", version_value)?;
+
+    Ok(format!("RIP send version {} set.", version))
+}
+
+/// Set the RIP receive version for a specific interface.
+///
+/// This function sets the version of RIP packets to receive for a particular interface.
+/// The `VERSION` can be 1, 2, or both (1 2).
+///
+/// # Parameters
+///
+/// * `interface`: The name of the interface.
+/// * `version`: The RIP version to receive (1, 2, or both).
+/// * `running_config`: A mutable reference to the running configuration.
+///
+/// # Returns
+///
+/// A `Result` containing a success message if the operation was successful, or an error message otherwise.
+pub fn set_rip_receive_version(
+    version: &str,
+    running_config: &mut RunningConfig,
+) -> Result<String, String> {
+    if version != "1" && version != "2" && version != "1 2" {
+        return Err(
+            "Invalid RIP receive version. Only '1', '2', or '1 2' are supported.".to_string(),
+        );
+    }
+
+    if !cfg!(test) {
+        let vtysh_result = Command::new("vtysh")
+            .arg("-c")
+            .arg("configure terminal")
+            .arg("-c")
+            .arg("-c")
+            .arg(format!("ip rip receive version {}", version))
+            .output()
+            .map_err(|e| format!("Failed to execute vtysh command: {}", e))?;
+
+        if !vtysh_result.status.success() {
+            return Err(format!(
+                "Failed to set RIP receive version {}: {}",
+                version,
+                String::from_utf8_lossy(&vtysh_result.stderr)
+            ));
+        }
+    }
+    let version_value = if version == "1" || version == "2" || version == "1 2" {
+        json!(version.parse::<u8>().unwrap())
+    } else {
+        json!(version) // This handles the "1 2" case
+    };
+
+    running_config.add_value_to_node(&["protocol", "rip"], "receive-version", version_value)?;
+
+    Ok(format!("RIP receive version {}.", version))
+}
+/// Set the default administrative distance for RIP routes.
+///
+/// # Parameters
+///
+/// * `distance`: The RIP administrative distance (1-255).
+/// * `running_config`: A mutable reference to the running configuration.
+///
+/// # Returns
+///
+/// A `Result` containing a success message if the operation was successful, or an error message otherwise.
+pub fn set_rip_distance_default(
+    distance: u8,
+    running_config: &mut RunningConfig,
+) -> Result<String, String> {
+    if distance < 1 || distance > 255 {
+        return Err("Invalid RIP distance value. Must be between 1 and 255.".to_string());
+    }
+
+    if !cfg!(test) {
+        let vtysh_result = Command::new("vtysh")
+            .arg("-c")
+            .arg("configure terminal")
+            .arg("-c")
+            .arg("router rip")
+            .arg("-c")
+            .arg(format!("distance {}", distance))
+            .output()
+            .map_err(|e| format!("Failed to execute vtysh command: {}", e))?;
+
+        if !vtysh_result.status.success() {
+            return Err(format!(
+                "Failed to set RIP distance {}: {}",
+                distance,
+                String::from_utf8_lossy(&vtysh_result.stderr)
+            ));
+        }
+    }
+
+    running_config.add_value_to_node(&["protocol", "rip"], "distance", json!(distance))?;
+
+    Ok(format!("RIP default distance set to {}.", distance))
+}
+/// Set the RIP administrative distance for routes when the route's source IP address matches a specified prefix.
+///
+/// # Parameters
+///
+/// * `distance`: The RIP administrative distance (1-255).
+/// * `source_prefix`: The source IP prefix.
+/// * `running_config`: A mutable reference to the running configuration.
+///
+/// # Returns
+///
+/// A `Result` containing a success message if the operation was successful, or an error message otherwise.
+pub fn set_rip_distance_with_prefix(
+    distance: u8,
+    source_prefix: &str,
+    running_config: &mut RunningConfig,
+) -> Result<String, String> {
+    if distance < 1 || distance > 255 {
+        return Err("Invalid RIP distance value. Must be between 1 and 255.".to_string());
+    }
+
+    if !cfg!(test) {
+        let vtysh_result = Command::new("vtysh")
+            .arg("-c")
+            .arg("configure terminal")
+            .arg("-c")
+            .arg("router rip")
+            .arg("-c")
+            .arg(format!("distance {} {}", distance, source_prefix))
+            .output()
+            .map_err(|e| format!("Failed to execute vtysh command: {}", e))?;
+
+        if !vtysh_result.status.success() {
+            return Err(format!(
+                "Failed to set RIP distance {} for prefix {}: {}",
+                distance,
+                source_prefix,
+                String::from_utf8_lossy(&vtysh_result.stderr)
+            ));
+        }
+    }
+
+    running_config.add_value_to_node(
+        &["protocol", "rip", "distance"],
+        source_prefix,
+        json!(distance),
+    )?;
+
+    Ok(format!(
+        "RIP distance {} set for prefix {}.",
+        distance, source_prefix
+    ))
+}
+
+/// Set the RIP administrative distance for routes when the route's source IP address matches a specified prefix and access-list.
+///
+/// # Parameters
+///
+/// * `distance`: The RIP administrative distance (1-255).
+/// * `source_prefix`: The source IP prefix.
+/// * `access_list`: The access-list name.
+/// * `running_config`: A mutable reference to the running configuration.
+///
+/// # Returns
+///
+/// A `Result` containing a success message if the operation was successful, or an error message otherwise.
+pub fn set_rip_distance_with_prefix_and_access_list(
+    distance: u8,
+    source_prefix: &str,
+    access_list: &str,
+    running_config: &mut RunningConfig,
+) -> Result<String, String> {
+    if distance < 1 || distance > 255 {
+        return Err("Invalid RIP distance value. Must be between 1 and 255.".to_string());
+    }
+
+    if !cfg!(test) {
+        let vtysh_result = Command::new("vtysh")
+            .arg("-c")
+            .arg("configure terminal")
+            .arg("-c")
+            .arg("router rip")
+            .arg("-c")
+            .arg(format!(
+                "distance {} {} {}",
+                distance, source_prefix, access_list
+            ))
+            .output()
+            .map_err(|e| format!("Failed to execute vtysh command: {}", e))?;
+
+        if !vtysh_result.status.success() {
+            return Err(format!(
+                "Failed to set RIP distance {} for prefix {} with access-list {}: {}",
+                distance,
+                source_prefix,
+                access_list,
+                String::from_utf8_lossy(&vtysh_result.stderr)
+            ));
+        }
+    }
+
+    running_config.add_value_to_node(
+        &["protocol", "rip", "distance"],
+        &format!("{} {}", source_prefix, access_list),
+        json!(distance),
+    )?;
+
+    Ok(format!(
+        "RIP distance {} set for prefix {} with access-list {}.",
+        distance, source_prefix, access_list
+    ))
+}
 pub fn help_commands() -> Vec<(&'static str, &'static str)> {
     vec![
         (
             "set protocol rip network <network-ip/prefix>",
             "Add a network to the RIP routing protocol.",
+        ),
+        (
+            "set protocol rip network <interface>",
+            "Add a network matching the interface to the RIP routing protocol.",
         ),
         (
             //will add also 12
@@ -605,6 +813,26 @@ pub fn help_commands() -> Vec<(&'static str, &'static str)> {
             "set protocol rip authentication <text|md5> [key-chain <KEY-CHAIN>] [string <STRING>]",
             "Set the RIP authentication mode, with an optional key-chain or password.",
         ),
+        (
+            "set protocol rip send-version <1|2|12>",
+            "Override the global RIP version setting for sending packets.",
+        ),
+        (
+            "set protocol rip receive-version <1|2|12>",
+            "Override the global RIP version setting for receiving packets.",
+        ),
+        (
+            "set protocol rip distance <distance>",
+            "Set the default administrative distance for RIP routes (value between 1 and 255).",
+        ),
+        (
+            "set protocol rip distance <distance> <source-ip/prefix>",
+            "Set the RIP distance for routes when the route's source IP address matches the specified prefix.",
+        ),
+        (
+            "set protocol rip distance <distance> <source-ip/prefix> <access-list>",
+            "Set the RIP distance for routes when the route's source IP address matches the specified prefix and the specified access-list.",
+        ),
     ]
 }
 #[cfg(test)]
@@ -613,47 +841,12 @@ mod tests {
     use crate::config::RunningConfig;
     use serde_json::json;
 
-    // #[test]
-    // fn test_set_rip_enabled_success() {
-    //     let mut running_config = RunningConfig::new();
-
-    //     // Call the function to enable RIP protocol
-    //     let result = set_rip_enabled(&mut running_config);
-
-    //     // Check if the result is successful
-    //     assert!(result.is_ok(), "Failed to enable RIP: {:?}", result.err());
-
-    //     // Ensure the running config is updated to reflect that RIP is enabled
-    //     assert_eq!(
-    //         running_config.get_value_from_node(&["protocol", "rip"], "enabled"),
-    //         Some(&json!(true)),
-    //         "RIP protocol was not enabled in the running configuration"
-    //     );
-    // }
-
-    // #[test]
-    // fn test_set_rip_enabled_already_enabled() {
-    //     let mut running_config = RunningConfig::new();
-
-    //     // Simulate that RIP is already enabled in the running config
-    //     running_config.add_value_to_node(&["protocol", "rip"], "enabled", json!(true));
-    //     // Call the function to enable RIP protocol again
-    //     let result = set_rip_enabled(&mut running_config);
-
-    //     // Check if it returns that RIP is already enabled
-    //     assert_eq!(
-    //         result.unwrap(),
-    //         "RIP protocol is already enabled.",
-    //         "RIP should return already enabled message"
-    //     );
-    // }
-
     #[test]
     fn test_set_rip_network_success() {
         let mut running_config = RunningConfig::new();
 
         // First enable RIP in the configuration
-        running_config.add_value_to_node(&["protocol", "rip"], "enabled", json!(true));
+        // running_config.add_value_to_node(&["protocol", "rip"], "enabled", json!(true));
 
         // Call the function to add a network to RIP
         let network = "192.168.1.0/24";
@@ -677,6 +870,31 @@ mod tests {
     }
 
     #[test]
+    fn test_set_rip_interface_success() {
+        let mut running_config = RunningConfig::new();
+
+        // Call the function to add an interface to RIP
+        let interface = "eth0";
+        let result = set_rip_network(interface, &mut running_config);
+
+        // Check if the result is successful
+        assert!(
+            result.is_ok(),
+            "Failed to add interface to RIP: {:?}",
+            result.err()
+        );
+
+        // Check if the interface was added to the array in the running config
+        let networks = running_config
+            .get_value_from_node(&["protocol", "rip"], "network")
+            .unwrap();
+        assert!(
+            networks.as_array().unwrap().contains(&json!(interface)),
+            "Interface was not added to RIP"
+        );
+    }
+
+    #[test]
     fn test_set_rip_network_already_added() {
         let mut running_config = RunningConfig::new();
 
@@ -695,38 +913,23 @@ mod tests {
     }
 
     #[test]
-    // fn test_set_rip_network_rip_not_enabled() {
-    //     let mut running_config = RunningConfig::new();
+    fn test_set_rip_interface_already_added() {
+        let mut running_config = RunningConfig::new();
 
-    //     let network = "192.168.1.0/24";
-    //     let result = set_rip_network(network, &mut running_config);
+        // Simulate that RIP is enabled and the interface is already added
+        running_config.add_value_to_node(&["protocol", "rip"], "enabled", json!(true));
 
-    //     assert_eq!(
-    //         result.unwrap_err(),
-    //         "RIP protocol is not enabled. Enable it with 'set protocol rip enabled'.",
-    //         "RIP should return an error when adding network without enabling RIP"
-    //     );
-    // }
+        let interface = "eth0";
+        set_rip_network(interface, &mut running_config);
+        let result = set_rip_network(interface, &mut running_config);
 
-    // #[test]
-    // fn test_parse_set_protocol_rip_command_enable() {
-    //     let mut running_config = RunningConfig::new();
+        assert_eq!(
+            result.unwrap(),
+            format!("Network {} is already added to RIP.", interface),
+            "RIP should return interface already added message"
+        );
+    }
 
-    //     let parts = vec!["set", "protocol", "rip", "enabled"];
-    //     let result = parse_set_protocol_rip_command(&parts, &mut running_config);
-
-    //     assert!(
-    //         result.is_ok(),
-    //         "Failed to parse and enable RIP: {:?}",
-    //         result.err()
-    //     );
-
-    //     assert_eq!(
-    //         running_config.get_value_from_node(&["protocol", "rip"], "enabled"),
-    //         Some(&json!(true)),
-    //         "RIP protocol was not enabled in the running configuration"
-    //     );
-    // }
     #[test]
     fn test_parse_set_protocol_rip_command_network() {
         let mut running_config = RunningConfig::new();
@@ -751,6 +954,30 @@ mod tests {
                 .unwrap()
                 .contains(&json!("192.168.1.0/24")),
             "Network was not added to RIP"
+        );
+    }
+
+    #[test]
+    fn test_parse_set_protocol_rip_command_interface() {
+        let mut running_config = RunningConfig::new();
+
+        running_config.add_value_to_node(&["protocol", "rip"], "enabled", json!(true));
+
+        let parts = vec!["set", "protocol", "rip", "network", "eth0"];
+        let result = parse_set_protocol_rip_command(&parts, &mut running_config);
+
+        assert!(
+            result.is_ok(),
+            "Failed to parse and add interface to RIP: {:?}",
+            result.err()
+        );
+
+        let networks = running_config
+            .get_value_from_node(&["protocol", "rip"], "network")
+            .unwrap();
+        assert!(
+            networks.as_array().unwrap().contains(&json!("eth0")),
+            "Interface was not added to RIP"
         );
     }
     #[test]
@@ -809,30 +1036,9 @@ mod tests {
         );
     }
 
-    // #[test]
-    // fn test_set_rip_version_rip_not_enabled() {
-    //     let mut running_config = RunningConfig::new();
-
-    //     let result = set_rip_version(1, &mut running_config);
-
-    //     assert!(
-    //         result.is_err(),
-    //         "Expected an error for RIP not being enabled"
-    //     );
-    //     assert_eq!(
-    //         result.unwrap_err(),
-    //         "RIP protocol is not enabled. Enable it with 'set protocol rip enabled'.",
-    //         "Unexpected error message for RIP not enabled"
-    //     );
-    // }
     #[test]
     fn test_set_rip_passive_interface_success() {
         let mut running_config = RunningConfig::new();
-
-        // First enable RIP in the configuration
-        // running_config
-        //     .add_value_to_node(&["protocol", "rip"], "enabled", json!(true))
-        //     .unwrap();
 
         running_config
             .add_value_to_node(&["interface"], "eth0", json!({}))
@@ -858,26 +1064,6 @@ mod tests {
         );
     }
 
-    //#[test]
-    // fn test_set_rip_passive_interface_rip_not_enabled() {
-    //     let mut running_config = RunningConfig::new();
-
-    //     running_config
-    //         .add_value_to_node(&["interface"], "eth0", json!({}))
-    //         .unwrap();
-
-    //     let result = set_rip_passive_interface("eth0", &mut running_config);
-
-    //     assert!(
-    //         result.is_err(),
-    //         "Expected an error for RIP not being enabled"
-    //     );
-    //     assert_eq!(
-    //         result.unwrap_err(),
-    //         "RIP protocol is not enabled. Enable it with 'set protocol rip enabled'.",
-    //         "Unexpected error message for RIP not enabled"
-    //     );
-    // }
     #[test]
     fn test_set_rip_passive_interface_interface_not_configured() {
         let mut running_config = RunningConfig::new();
@@ -1295,6 +1481,134 @@ mod tests {
         assert_eq!(
             result.unwrap_err(),
             "Authentication string must be shorter than 16 characters."
+        );
+    }
+    #[test]
+    fn test_set_rip_send_version_success() {
+        let mut running_config = RunningConfig::new();
+
+        // Simulate that the interface is configured
+        running_config.add_value_to_node(&["protocol", "rip"], "send-version", json!({}));
+
+        let result = set_rip_send_version("1", &mut running_config);
+
+        // Check if the result is successful
+        assert!(
+            result.is_ok(),
+            "Failed to set RIP send version: {:?}",
+            result.err()
+        );
+
+        // Check if the send version was set in the running configuration
+        let send_version = running_config
+            .get_value_from_node(&["protocol", "rip"], "send-version")
+            .unwrap();
+        assert_eq!(send_version, 1, "RIP send version was not set correctly");
+    }
+
+    #[test]
+    fn test_set_rip_send_version_invalid() {
+        let mut running_config = RunningConfig::new();
+
+        // Simulate that the interface is configured
+        running_config.add_value_to_node(&["interface"], "eth0", json!({}));
+
+        let result = set_rip_send_version("3", &mut running_config);
+
+        // Check if the result is an error due to an invalid version
+        assert!(
+            result.is_err(),
+            "Expected an error for invalid RIP send version"
+        );
+        assert_eq!(
+            result.unwrap_err(),
+            "Invalid RIP send version. Only '1', '2', or '1 2' are supported.",
+            "Unexpected error message for invalid send version"
+        );
+    }
+
+    #[test]
+    fn test_set_rip_distance_default_success() {
+        let mut running_config = RunningConfig::new();
+        let distance = 120;
+
+        let result = set_rip_distance_default(distance, &mut running_config);
+
+        assert!(
+            result.is_ok(),
+            "Expected success but got error: {:?}",
+            result.err()
+        );
+        assert_eq!(
+            running_config.get_value_from_node(&["protocol", "rip"], "distance"),
+            Some(&json!(distance)),
+            "RIP default distance was not set correctly"
+        );
+    }
+
+    #[test]
+    #[test]
+    fn test_set_rip_distance_with_prefix_success() {
+        let mut running_config = RunningConfig::new();
+        let distance = 150;
+        let source_prefix = "192.168.1.0/24";
+
+        let result = set_rip_distance_with_prefix(distance, source_prefix, &mut running_config);
+
+        assert!(
+            result.is_ok(),
+            "Expected success but got error: {:?}",
+            result.err()
+        );
+        assert_eq!(
+            running_config.get_value_from_node(&["protocol", "rip", "distance"], source_prefix),
+            Some(&json!(distance)),
+            "RIP distance for prefix was not set correctly"
+        );
+    }
+
+    #[test]
+    fn test_set_rip_distance_with_prefix_invalid_value() {
+        let mut running_config = RunningConfig::new();
+        let distance = 0; // Invalid value
+        let source_prefix = "192.168.1.0/24";
+
+        let result = set_rip_distance_with_prefix(distance, source_prefix, &mut running_config);
+
+        assert!(result.is_err(), "Expected an error but got success");
+        assert_eq!(
+            result.unwrap_err(),
+            "Invalid RIP distance value. Must be between 1 and 255.",
+            "Unexpected error message for invalid distance value"
+        );
+    }
+
+    #[test]
+    fn test_set_rip_distance_with_prefix_and_access_list_success() {
+        let mut running_config = RunningConfig::new();
+        let distance = 200;
+        let source_prefix = "10.0.0.0/8";
+        let access_list = "ALLOWED_ROUTES";
+
+        let result = set_rip_distance_with_prefix_and_access_list(
+            distance,
+            source_prefix,
+            access_list,
+            &mut running_config,
+        );
+
+        assert!(
+            result.is_ok(),
+            "Expected success but got error: {:?}",
+            result.err()
+        );
+        assert_eq!(
+            running_config.get_value_from_node(
+                &["protocol", "rip", "distance"],
+                &format!("{} {}", source_prefix, access_list)
+            ),
+            Some(&json!(distance)),
+            "RIP distance for prefix with access-list was not set correctly"
         );
     }
 }
