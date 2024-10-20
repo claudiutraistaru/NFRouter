@@ -239,8 +239,11 @@ impl RunningConfig {
         if path.contains(&"default-policy".to_string()) {
             return 3; // Prioritate înaltă pentru setarea politicii implicite
         }
+        if path.contains(&"interface".to_string()) {
+            return 4;
+        }
         if path.contains(&"rules".to_string()) {
-            return 4; // Prioritate medie pentru regulile firewall
+            return 6; // Prioritate medie pentru regulile firewall
         }
         if path.contains(&"interface".to_string()) && path.contains(&"firewall".to_string()) {
             return 5; // Prioritate joasă pentru aplicarea firewall-ului la interfață

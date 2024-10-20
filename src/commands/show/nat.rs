@@ -63,7 +63,7 @@ pub fn show_nat_conntrack() -> Result<String, String> {
     let output = Command::new("conntrack")
         .arg("-L")
         .output()
-        .map_err(|e| format!("Failed to execute vtysh command: {}", e))?;
+        .map_err(|e| format!("Failed to execute conntrack command: {}", e))?;
 
     if output.status.success() {
         Ok(format!("{}", String::from_utf8_lossy(&output.stdout)))

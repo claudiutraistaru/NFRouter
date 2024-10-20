@@ -247,5 +247,6 @@ fn collect_help_lines() -> Vec<(&'static str, &'static str)> {
     help_lines.extend(commands::set::service::help_commands());
     help_lines.extend(commands::set::protocol::help_commands());
     help_lines.extend(commands::exec::command::help_commands());
+    help_lines.extend(commands::show::nat::help_command());
     help_lines
 }

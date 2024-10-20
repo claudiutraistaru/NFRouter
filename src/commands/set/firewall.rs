@@ -121,7 +121,10 @@ pub fn add_firewall_rule(
 
     let interfaces = running_config.config["interface"]
         .as_object()
-        .ok_or_else(|| "Interface configuration is not a valid object".to_string())?;
+        .ok_or_else(|| {
+            "add_firewall_rule: Interface configuration is not a valid object".to_string()
+        })?;
+
     if cfg!(test) {
         return Ok(format!(
             "Firewall rule added successfully to {}",
@@ -145,7 +148,7 @@ pub fn add_firewall_rule(
                     if rules_len > 0 {
                         command_args.push("-I".to_string());
                         command_args.push(rule_set_name.to_string());
-                        command_args.push((rules_len - 1).to_string()); // Add before the last rule, before default-policy
+                        command_args.push((rules_len).to_string()); // Add before the last rule, before default-policy
                     } else {
                         command_args.push("-A".to_string());
                         command_args.push(rule_set_name.to_string());
@@ -175,18 +178,16 @@ pub fn add_firewall_rule(
                         command_args.join(" ")
                     );
 
-                    if !*DETACHED_FLAG {
-                        let output = Command::new("iptables")
-                            .args(&command_args)
-                            .output()
-                            .map_err(|e| format!("Failed to add rule to iptables: {}", e))?;
+                    let output = Command::new("iptables")
+                        .args(&command_args)
+                        .output()
+                        .map_err(|e| format!("Failed to add rule to iptables: {}", e))?;
 
-                        if !output.status.success() {
-                            return Err(format!(
-                                "Failed to add rule to iptables: {}",
-                                String::from_utf8_lossy(&output.stderr)
-                            ));
-                        }
+                    if !output.status.success() {
+                        return Err(format!(
+                            "Failed to add rule to iptables: {}",
+                            String::from_utf8_lossy(&output.stderr)
+                        ));
 
                         println!(
                             "Rule applied successfully to iptables for interface: {} ({})",
@@ -428,10 +429,14 @@ fn is_ruleset_assigned_to_interface(
     running_config: &RunningConfig,
 ) -> Result<bool, String> {
     // Get the interface configuration from the running config
-    let interfaces = running_config.config["interface"]
-        .as_object()
-        .ok_or_else(|| "Interface configuration is not a valid object".to_string())?;
-
+    let interfaces = running_config
+        .config
+        .get("interface")
+        .and_then(|v| v.as_object())
+        .ok_or_else(|| {
+            "is_ruleset_assigned_to_interface: Interface configuration is not a valid object"
+                .to_string()
+        })?;
     // Check if the specified interface exists in the configuration
     if let Some(interface_config) = interfaces.get(interface) {
         // Check if the interface has a firewall assigned in the specified direction (in/out)
@@ -548,6 +553,15 @@ pub fn set_default_policy(
                         .ok_or_else(|| format!("Rule set {} is not a valid object", rule_set_name))?
                         .insert("default-policy".to_string(), json!(policy));
                 }
+            }
+            if cfg!(test) {
+                let output = Command::new("iptables")
+                    .arg("-A")
+                    .arg(rule_set_name)
+                    .arg("-j")
+                    .arg(policy)
+                    .output()
+                    .map_err(|e| format!("Failed to execute iptables command: {}", e))?;
             }
 
             Ok(format!(
