@@ -23,7 +23,7 @@ use std::net::IpAddr;
 use std::path::Path;
 use std::process::Command;
 
-pub fn show_interface(
+pub fn parse_show_interface(
     parts: &[&str],
     running_config: &mut RunningConfig,
 ) -> Result<String, String> {

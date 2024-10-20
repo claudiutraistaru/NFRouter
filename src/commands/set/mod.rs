@@ -582,7 +582,7 @@ mod test {
                     },
                     "send-version": 1,
                     "receive-version": 2,
-                    "distance": 200
+                    "distance": 200,
                 }
             },
             "firewall": {

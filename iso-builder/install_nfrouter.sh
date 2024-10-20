@@ -113,7 +113,7 @@ chroot /mnt rc-update add local default
 # sed -i 's/^#\(.*\/community\)/\1/' $REPO_FILE
 # echo "Community repository enabled successfully."
 chroot /mnt apk fetch
-chroot /mnt apk add dnsmasq frr
+chroot /mnt apk add dnsmasq frr conntrack
 
 DAEMONS_FILE="/etc/frr/daemons"
 if [ ! -f "$DAEMONS_FILE" ]; then

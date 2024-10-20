@@ -1,6 +1,6 @@
 use crate::config::RunningConfig;
 
-pub fn show_firewall(running_config: &RunningConfig) -> Result<String, String> {
+pub fn parse_show_firewall(running_config: &RunningConfig) -> Result<String, String> {
     // Retrieve the firewall configuration
     let firewall_config = running_config.config["firewall"]
         .as_object()

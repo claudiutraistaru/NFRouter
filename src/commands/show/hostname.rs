@@ -21,7 +21,7 @@ use libc;
 use std::ffi::CStr;
 use std::mem;
 
-pub fn show_hostname_command(parts: &[&str]) -> Result<String, String> {
+pub fn parse_show_hostname(parts: &[&str]) -> Result<String, String> {
     // Create a buffer to hold the hostname
     let mut buffer: [libc::c_char; 256] = unsafe { mem::zeroed() };
 

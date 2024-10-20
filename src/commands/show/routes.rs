@@ -18,7 +18,7 @@
  */
 use std::process::Command;
 
-pub fn show_routes(parts: &[&str]) -> Result<String, String> {
+pub fn parse_show_routes(parts: &[&str]) -> Result<String, String> {
     // Execute the vtysh command to show the routing table
     let output = Command::new("vtysh")
         .arg("-c")

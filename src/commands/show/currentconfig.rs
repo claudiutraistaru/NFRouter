@@ -19,7 +19,7 @@
 use crate::config::RunningConfig;
 use std::process::Command;
 
-pub fn show_current_config_command(running_config: &RunningConfig) -> Result<String, String> {
+pub fn parse_show_current_config(running_config: &RunningConfig) -> Result<String, String> {
     running_config.show_current_config()
 }
 

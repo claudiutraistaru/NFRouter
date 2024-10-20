@@ -20,4 +20,6 @@ pub mod currentconfig;
 pub mod firewall;
 pub mod hostname;
 pub mod interface;
+pub mod nat;
+pub mod protocol;
 pub mod routes;

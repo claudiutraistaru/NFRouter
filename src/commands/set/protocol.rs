@@ -708,64 +708,6 @@ pub fn set_rip_distance_with_prefix(
     ))
 }
 
-/// Set the RIP administrative distance for routes when the route's source IP address matches a specified prefix and access-list.
-///
-/// # Parameters
-///
-/// * `distance`: The RIP administrative distance (1-255).
-/// * `source_prefix`: The source IP prefix.
-/// * `access_list`: The access-list name.
-/// * `running_config`: A mutable reference to the running configuration.
-///
-/// # Returns
-///
-/// A `Result` containing a success message if the operation was successful, or an error message otherwise.
-pub fn set_rip_distance_with_prefix_and_access_list(
-    distance: u8,
-    source_prefix: &str,
-    access_list: &str,
-    running_config: &mut RunningConfig,
-) -> Result<String, String> {
-    if distance < 1 || distance > 255 {
-        return Err("Invalid RIP distance value. Must be between 1 and 255.".to_string());
-    }
-
-    if !cfg!(test) {
-        let vtysh_result = Command::new("vtysh")
-            .arg("-c")
-            .arg("configure terminal")
-            .arg("-c")
-            .arg("router rip")
-            .arg("-c")
-            .arg(format!(
-                "distance {} {} {}",
-                distance, source_prefix, access_list
-            ))
-            .output()
-            .map_err(|e| format!("Failed to execute vtysh command: {}", e))?;
-
-        if !vtysh_result.status.success() {
-            return Err(format!(
-                "Failed to set RIP distance {} for prefix {} with access-list {}: {}",
-                distance,
-                source_prefix,
-                access_list,
-                String::from_utf8_lossy(&vtysh_result.stderr)
-            ));
-        }
-    }
-
-    running_config.add_value_to_node(
-        &["protocol", "rip", "distance"],
-        &format!("{} {}", source_prefix, access_list),
-        json!(distance),
-    )?;
-
-    Ok(format!(
-        "RIP distance {} set for prefix {} with access-list {}.",
-        distance, source_prefix, access_list
-    ))
-}
 pub fn help_commands() -> Vec<(&'static str, &'static str)> {
     vec![
         (
@@ -828,11 +770,7 @@ pub fn help_commands() -> Vec<(&'static str, &'static str)> {
         (
             "set protocol rip distance <distance> <source-ip/prefix>",
             "Set the RIP distance for routes when the route's source IP address matches the specified prefix.",
-        ),
-        (
-            "set protocol rip distance <distance> <source-ip/prefix> <access-list>",
-            "Set the RIP distance for routes when the route's source IP address matches the specified prefix and the specified access-list.",
-        ),
+        )
     ]
 }
 #[cfg(test)]
@@ -1117,10 +1055,6 @@ mod tests {
     fn test_set_rip_redistribute_static_success() {
         let mut running_config = RunningConfig::new();
 
-        // running_config
-        //     .add_value_to_node(&["protocol", "rip"], "enabled", json!(true))
-        //     .unwrap();
-        // Call the function to redistribute static routes into RIP
         let result = set_rip_redistribute_static(&mut running_config);
 
         assert!(
@@ -1135,19 +1069,6 @@ mod tests {
             "Static route redistribution was not enabled in the RIP configuration"
         );
     }
-
-    // #[test]
-    // fn test_set_rip_redistribute_static_rip_not_enabled() {
-    //     let mut running_config = RunningConfig::new();
-
-    //     let result = set_rip_redistribute_static(&mut running_config);
-
-    //     assert!(result.is_err(), "Expected error when RIP is not enabled");
-    //     assert_eq!(
-    //         result.err().unwrap(),
-    //         "RIP protocol is not enabled. Enable it with 'set protocol rip enabled'."
-    //     );
-    // }
 
     #[test]
     fn test_set_rip_redistribute_static_already_set() {
@@ -1174,10 +1095,6 @@ mod tests {
     fn test_set_rip_redistribute_connected_success() {
         let mut running_config = RunningConfig::new();
 
-        // running_config
-        //     .add_value_to_node(&["protocol", "rip"], "enabled", json!(true))
-        //     .unwrap();
-
         let result = set_rip_redistribute_connected(&mut running_config);
 
         assert!(
@@ -1193,26 +1110,10 @@ mod tests {
         );
     }
 
-    // #[test]
-    // fn test_set_rip_redistribute_connected_rip_not_enabled() {
-    //     let mut running_config = RunningConfig::new();
-
-    //     let result = set_rip_redistribute_connected(&mut running_config);
-
-    //     assert!(result.is_err(), "Expected error when RIP is not enabled");
-    //     assert_eq!(
-    //         result.err().unwrap(),
-    //         "RIP protocol is not enabled. Enable it with 'set protocol rip enabled'."
-    //     );
-    // }
-
     #[test]
     fn test_set_rip_redistribute_connected_already_set() {
         let mut running_config = RunningConfig::new();
 
-        running_config
-            .add_value_to_node(&["protocol", "rip"], "enabled", json!(true))
-            .unwrap();
         running_config
             .add_value_to_node(
                 &["protocol", "rip", "redistribute"],
@@ -1580,35 +1481,6 @@ mod tests {
             result.unwrap_err(),
             "Invalid RIP distance value. Must be between 1 and 255.",
             "Unexpected error message for invalid distance value"
-        );
-    }
-
-    #[test]
-    fn test_set_rip_distance_with_prefix_and_access_list_success() {
-        let mut running_config = RunningConfig::new();
-        let distance = 200;
-        let source_prefix = "10.0.0.0/8";
-        let access_list = "ALLOWED_ROUTES";
-
-        let result = set_rip_distance_with_prefix_and_access_list(
-            distance,
-            source_prefix,
-            access_list,
-            &mut running_config,
-        );
-
-        assert!(
-            result.is_ok(),
-            "Expected success but got error: {:?}",
-            result.err()
-        );
-        assert_eq!(
-            running_config.get_value_from_node(
-                &["protocol", "rip", "distance"],
-                &format!("{} {}", source_prefix, access_list)
-            ),
-            Some(&json!(distance)),
-            "RIP distance for prefix with access-list was not set correctly"
         );
     }
 }

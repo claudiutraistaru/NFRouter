@@ -22,9 +22,11 @@ extern crate lazy_static;
 // Definim o variabilă globală de tip bool, inițializată cu true
 
 use commands::set::interface::set_interface_ip;
-use commands::show::currentconfig::show_current_config_command;
-use commands::show::firewall::show_firewall;
-use commands::show::interface::show_interface;
+use commands::show::currentconfig::parse_show_current_config;
+use commands::show::firewall::parse_show_firewall;
+use commands::show::interface::parse_show_interface;
+use commands::show::nat::parse_show_nat;
+use commands::show::protocol::show_rip;
 use commands::unset::interface::{unset_interface_ip, unset_interface_mtu, unset_interface_speed};
 use rustyline::error::ReadlineError;
 use rustyline::{Config, DefaultEditor, Editor};
@@ -35,8 +37,8 @@ mod config;
 
 use crate::completer::{CommandCompleter, MyHelper};
 use commands::help::{build_help_message, build_help_message_vec, help_for_context};
-use commands::show::hostname::show_hostname_command;
-use commands::show::routes::show_routes;
+use commands::show::hostname::parse_show_hostname;
+use commands::show::routes::parse_show_routes;
 use config::RunningConfig;
 use serde_json::{json, Value};
 use std::env;
@@ -169,11 +171,19 @@ fn handle_unset_command(parts: &[&str], running_config: &mut RunningConfig) {
 }
 fn handle_show_command(parts: &[&str], running_config: &mut RunningConfig) {
     let result = match parts[1] {
-        "hostname" => show_hostname_command(parts),
-        "interface" => show_interface(parts, running_config),
-        "routes" => show_routes(parts),
-        "firewall" => show_firewall(running_config),
-        "current-config" => show_current_config_command(running_config),
+        "hostname" => parse_show_hostname(parts),
+        "interface" => parse_show_interface(parts, running_config),
+        "routes" => parse_show_routes(parts),
+        "firewall" => parse_show_firewall(running_config),
+        "current-config" => parse_show_current_config(running_config),
+        "nat" => parse_show_nat(parts),
+        "protocol" => {
+            if parts[2] == "rip" {
+                show_rip()
+            } else {
+                Ok("Invalid show command".to_string())
+            }
+        }
         _ => Ok("Invalid show command".to_string()),
     };
 
