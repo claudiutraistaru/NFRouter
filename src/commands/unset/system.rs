@@ -43,9 +43,9 @@ pub fn unset_ip_forwarding(running_config: &mut RunningConfig) -> Result<String,
     }
 }
 
-pub fn help_unset_command() -> Vec<(&'static str, &'static str)> {
+pub fn help_commands() -> Vec<(&'static str, &'static str)> {
     vec![(
-        "unset system ipforwarding",
+        "unset system ipforwarding enabled",
         "Disable and remove IP forwarding configuration.",
     )]
 }

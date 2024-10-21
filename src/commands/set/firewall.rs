@@ -11,8 +11,8 @@ use std::str;
 ///
 /// # Parameters
 ///
-/// * `rule_set_name`: The name of the firewall rule set to create or check for existence.
-/// * `running_config`: A mutable reference to the running configuration.
+/// * rule_set_name: The name of the firewall rule set to create or check for existence.
+/// * running_config: A mutable reference to the running configuration.
 ///
 /// # Returns
 ///
@@ -42,13 +42,13 @@ pub fn create_firewall_rule_set(
 ///
 /// # Parameters
 ///
-/// * `rule_set_name`: The name of the firewall rule set to add a rule to.
-/// * `rule_number`: The position where the new rule should be inserted (optional).
-/// * `action`: The action that this rule will take when matched.
-/// * `source`: The source IP address or network (optional).
-/// * `destination`: The destination IP address or network (optional).
-/// * `protocol`: The protocol to apply this rule for (optional).
-/// * `port`: The port number to apply this rule for (optional).
+/// * rule_set_name: The name of the firewall rule set to add a rule to.
+/// * rule_number: The position where the new rule should be inserted (optional).
+/// * action: The action that this rule will take when matched.
+/// * source: The source IP address or network (optional).
+/// * destination: The destination IP address or network (optional).
+/// * protocol: The protocol to apply this rule for (optional).
+/// * port: The port number to apply this rule for (optional).
 ///
 /// # Returns
 ///
@@ -554,7 +554,7 @@ pub fn set_default_policy(
                         .insert("default-policy".to_string(), json!(policy));
                 }
             }
-            if cfg!(test) {
+            if !cfg!(test) {
                 let output = Command::new("iptables")
                     .arg("-A")
                     .arg(rule_set_name)

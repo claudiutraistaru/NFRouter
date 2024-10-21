@@ -1,5 +1,5 @@
 /*
-# This file is part of NFRouter.
+ * This file is part of NFRouter.
  *
  * Copyright (C) 2024 Claudiu Trăistaru
  *
@@ -16,40 +16,38 @@
  * You should have received a copy of the GNU Affero General Public License
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
+pub mod firewall;
 pub mod interface;
 pub mod nat;
 pub mod route;
 pub mod system;
 
 use crate::config::RunningConfig;
+use firewall::delete_firewall_rule_from_iptables;
 use interface::{unset_interface_ip, unset_interface_speed};
+use route::unset_route;
 use std::net::IpAddr;
+use system::unset_ip_forwarding;
 pub fn parse_unset_command(
     parts: &[&str],
     running_config: &mut RunningConfig,
 ) -> Result<String, String> {
-    if parts.len() > 2 {
-        match parts[1] {
-            "interface" => {
-                let interface = parts[2];
-                if parts.len() == 4 && parts[3] == "ip" {
-                    unset_interface_ip(interface.to_string(), running_config)
-                } else {
-                    Err("Invalid or incomplete unset command".to_string())
-                }
-            }
-            // "hostname" if parts.len() == 3 => {
-            //     let hostname = parts[2].to_string();
-            //     unet_hostname(hostname, running_config)
-            // }
-            // "route" if parts.len() == 5 => {
-            //     let destination = parts[2];
-            //     let via = parts[4];
-            //     set_route(destination, via, running_config)
-            // }
-            _ => Err("Invalid set command".to_string()),
+    match parts {
+        ["unset", "interface", interface, "ip"] => {
+            unset_interface_ip(interface.to_string(), running_config)
         }
-    } else {
-        Err("Incomplete set command".to_string())
+        ["unset", "system", "ipforwarding", "enabled"] => unset_ip_forwarding(running_config),
+        ["unset", "route", destination] => unset_route(destination, running_config),
+        ["unset", "firewall", rule_set_name, rule_number] => {
+            delete_firewall_rule_from_iptables(rule_set_name, rule_number, running_config)
+        }
+        // Uncomment and adjust the following match arms as needed:
+        // ["unset", "hostname", hostname] => {
+        //     unset_hostname(hostname.to_string(), running_config)
+        // }
+        // ["unset", "route", destination, "via", via] => {
+        //     unset_route(destination, via, running_config)
+        // }
+        _ => Err("Invalid or incomplete unset command".to_string()),
     }
 }

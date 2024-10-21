@@ -1,5 +1,5 @@
 /*
-# This file is part of NFRouter.
+ * This file is part of NFRouter.
  *
  * Copyright (C) 2024 Claudiu Trăistaru
  *
@@ -248,5 +248,8 @@ fn collect_help_lines() -> Vec<(&'static str, &'static str)> {
     help_lines.extend(commands::set::protocol::help_commands());
     help_lines.extend(commands::exec::command::help_commands());
     help_lines.extend(commands::show::nat::help_command());
+    help_lines.extend(commands::unset::route::help_commands());
+    help_lines.extend(commands::unset::system::help_commands());
+    help_lines.extend(commands::unset::firewall::help_commands());
     help_lines
 }

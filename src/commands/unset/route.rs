@@ -1,5 +1,5 @@
 /*
-# This file is part of NFRouter.
+ * This file is part of NFRouter.
  *
  * Copyright (C) 2024 Claudiu Trăistaru
  *
@@ -82,7 +82,7 @@ pub fn unset_route(
 
     Ok(format!("Removed route to {} via FRR", destination))
 }
-pub fn help_command_unset() -> Vec<(&'static str, &'static str)> {
+pub fn help_commands() -> Vec<(&'static str, &'static str)> {
     vec![(
         "unset route <destination>",
         "Remove the route to the specified destination using FRR.",

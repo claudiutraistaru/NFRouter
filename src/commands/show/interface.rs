@@ -1,5 +1,5 @@
 /*
-# This file is part of NFRouter.
+ * This file is part of NFRouter.
  *
  * Copyright (C) 2024 Claudiu Trăistaru
  *

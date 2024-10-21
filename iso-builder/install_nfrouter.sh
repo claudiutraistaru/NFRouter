@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# This file is part of NFRouter. *
+ * This file is part of NFRouter. *
 # Copyright (C) 2024 Claudiu Trăistaru
 #
 # This program is free software: you can redistribute it and/or modify

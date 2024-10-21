@@ -1,5 +1,5 @@
 /*
-# This file is part of NFRouter.
+ * This file is part of NFRouter.
  *
  * Copyright (C) 2024 Claudiu Trăistaru
  *
@@ -550,6 +550,15 @@ mod test {
                     "zone": "internal",
                     "firewall": {
                         "in": "test-rule-set"
+                    }
+                },
+                "eth1": {
+                    "address": "192.168.10.1/24",
+                    "description": "External Network",
+                    "options": {
+                        "enabled": true,
+                        "hw-id": "00:1A:2B:3C:4D:5A",
+                        "mtu": 1500
                     }
                 }
             },

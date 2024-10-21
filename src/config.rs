@@ -1,5 +1,5 @@
 /*
-# This file is part of NFRouter.
+ * This file is part of NFRouter.
  *
  * Copyright (C) 2024 Claudiu Trăistaru
  *
@@ -452,6 +452,25 @@ impl RunningConfig {
 
         current_node.get_mut(key)
     }
+    pub fn get_or_create_array_node(&mut self, path: &[&str]) -> &mut Value {
+        let mut current_node = &mut self.config;
+
+        for key in path {
+            current_node = current_node
+                .as_object_mut()
+                .unwrap()
+                .entry(key.to_string())
+                .or_insert_with(|| Value::Array(Vec::new()));
+        }
+
+        // Ensure the final node is an array
+        if !current_node.is_array() {
+            *current_node = Value::Array(Vec::new());
+        }
+
+        current_node
+    }
+
     /// Remove a value from a node in the configuration.
     ///
     /// This function allows removing values from existing nodes. It traverses through the configuration
