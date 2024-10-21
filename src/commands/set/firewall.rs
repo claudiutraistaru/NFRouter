@@ -773,10 +773,6 @@ pub fn help_commands() -> Vec<(&'static str, &'static str)> {
             "Set the default policy for the specified rule set."
         ),
         (
-            "set firewall <rule-set-name> <rule-number>",
-            "Optional; specify the rule number to insert the rule at a specific position."
-        ),
-        (
             "set firewall <rule-set-name> <rule-number> action <accept|drop|reject>",
             "The action to take for traffic matching this rule: 'accept', 'drop', or 'reject'"
         ),
