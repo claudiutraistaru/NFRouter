@@ -34,7 +34,7 @@ use interface::{
     set_interface_ip_disable_forwarding, set_interface_option, set_interface_vlan,
     set_interface_zone,
 };
-use nat::set_nat_masquerade;
+use nat::{parse_set_nat, set_nat_masquerade};
 use protocol::parse_set_protocol_rip_command;
 use protocol::*;
 use route::set_route;
@@ -215,18 +215,7 @@ pub fn parse_set_command(
             "system" if parts.len() == 4 && parts[2] == "ipforwarding" => {
                 set_ip_forwarding(parts[2], parts[3], running_config)
             }
-            "nat"
-                if parts[0] == "set"
-                    && parts[1] == "nat"
-                    && parts[2] == "masquerade"
-                    && parts[3] == "from"
-                    && parts[5] == "to" =>
-            {
-                // Handle the command to set NAT masquerade between zones
-                let from_zone = parts[4].to_string();
-                let to_zone = parts[6].to_string();
-                set_nat_masquerade(from_zone, to_zone, running_config)
-            }
+            "nat" => parse_set_nat(parts, running_config),
 
             "firewall" => {
                 let rule_set_name = parts[2];

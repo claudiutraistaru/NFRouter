@@ -41,7 +41,7 @@ pub fn set_route(
 ) -> Result<String, String> {
     // Default distance to 1 if not provided
     let distance = distance.unwrap_or(1);
-
+    //TODO: Solve!Not working as expected when using interface in place of next hop ip  (it might be on frr expecting the network to be reachable via L2)
     #[cfg(not(test))]
     {
         // Build the vtysh command to configure the static route
