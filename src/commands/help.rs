@@ -36,11 +36,11 @@ pub fn build_help_message() -> String {
 
     // Adăugăm comenzile generale
     help_lines.push(format!(
-        "  {:<40} - {}",
+        "  {} - {}",
         "save running-config", "Save the current configuration to a file."
     ));
-    help_lines.push(format!("  {:<40} - {}", "help", "Show this help message."));
-    help_lines.push(format!("  {:<40} - {}", "exit", "Exit the CLI."));
+    help_lines.push(format!("  {} - {}", "help", "Show this help message."));
+    help_lines.push(format!("  {} - {}", "exit", "Exit the CLI."));
 
     help_lines.join("\n")
 }

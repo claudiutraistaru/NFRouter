@@ -24,8 +24,14 @@ pub fn parse_show_current_config(running_config: &RunningConfig) -> Result<Strin
 }
 
 pub fn help_command() -> Vec<(&'static str, &'static str)> {
-    vec![(
-        "show current-config",
-        "Show the current running configuration.",
-    )]
+    vec![
+        (
+            "show current-config",
+            "Show the current running configuration.",
+        ),
+        (
+            "show setcommands",
+            "Show configuration in a command line ready format",
+        ),
+    ]
 }

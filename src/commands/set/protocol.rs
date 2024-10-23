@@ -86,7 +86,7 @@ pub fn set_rip_network(
     network_or_interface: &str,
     running_config: &mut RunningConfig,
 ) -> Result<String, String> {
-    println!("Current running config: {:?}", running_config.config);
+    //println!("Current running config: {:?}", running_config.config);
 
     // Determine if the input is a network (IP with prefix) or an interface
     let is_network = Regex::new(r"^(\d{1,3}\.){3}\d{1,3}/\d{1,2}$")

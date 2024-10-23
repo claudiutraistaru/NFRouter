@@ -66,6 +66,7 @@ impl RunningConfig {
         let mut path = vec![];
         let mut commands: Vec<(i32, String)> = vec![]; // Collect non-enabled commands with priorities
         let mut enabled_commands: Vec<String> = vec![]; // Collect enabled commands separately
+        let mut beginning_commands = None; //Collect commands that need to be applied first
 
         // Collect all commands, separating enabled commands
         self.collect_commands(
@@ -73,11 +74,16 @@ impl RunningConfig {
             &mut path,
             &mut commands,
             &mut enabled_commands,
+            &mut beginning_commands,
         );
 
         // Sort the commands based on priority
         commands.sort_by(|a, b| a.0.cmp(&b.0));
-
+        // Apply the 'set system ipforwarding enabled' command first if found
+        if let Some(beginning_command) = beginning_commands {
+            let parts: Vec<&str> = beginning_command.split_whitespace().collect();
+            handle_set_command(&parts, self);
+        }
         // Apply non-enabled commands first
         for (_, cmd) in commands {
             println!("Applying command: {}", cmd);
@@ -93,13 +99,52 @@ impl RunningConfig {
         }
     }
 
+    // Show the commands by collecting and outputting them
+    pub fn show_set_commands(&self) -> Result<String, String> {
+        let mut path = vec![];
+        let mut commands: Vec<(i32, String)> = vec![]; // Collect non-enabled commands with priorities
+        let mut enabled_commands: Vec<String> = vec![]; // Collect enabled commands separately
+        let mut beginning_commands = None; // Collect commands that need to be applied first
+
+        // Collect all commands from the configuration (non-mutable `self`)
+        self.collect_commands(
+            &self.config,
+            &mut path,
+            &mut commands,
+            &mut enabled_commands,
+            &mut beginning_commands,
+        );
+
+        // Sort the commands based on priority
+        commands.sort_by(|a, b| a.0.cmp(&b.0));
+
+        let mut output: Vec<String> = Vec::new();
+
+        // Output the 'set system ipforwarding enabled' command first if found
+        if let Some(beginning_command) = beginning_commands {
+            output.push(beginning_command);
+        }
+
+        // Output non-enabled commands
+        for (_, cmd) in commands {
+            output.push(cmd);
+        }
+
+        // Output the 'enabled' commands last
+        for enabled_cmd in enabled_commands {
+            output.push(enabled_cmd);
+        }
+
+        Ok(output.join("\n"))
+    }
     // Funcție care colectează comenzile și le asociază cu o prioritate
     fn collect_commands(
-        &mut self,
+        &self,
         node: &Value,
         path: &mut Vec<String>,
         commands: &mut Vec<(i32, String)>,
-        enabled_commands: &mut Vec<String>, // Collect enabled commands separately
+        enabled_commands: &mut Vec<String>,
+        beggining_commands: &mut Option<String>, // Collect enabled commands separately
     ) {
         match node {
             Value::Object(map) => {
@@ -112,8 +157,16 @@ impl RunningConfig {
                     if key == "enabled" {
                         if let Value::Bool(enabled) = value {
                             if *enabled {
-                                let enabled_cmd = format!("set {} enabled", path.join(" "));
-                                enabled_commands.push(enabled_cmd);
+                                let command = format!("set {} enabled", path.join(" "));
+                                // Special case for system ipforwarding enabled
+                                if path.len() == 2
+                                    && path[0] == "system"
+                                    && path[1] == "ipforwarding"
+                                {
+                                    *beggining_commands = Some(command);
+                                } else {
+                                    enabled_commands.push(command);
+                                }
                             }
                         }
                         continue; // Skip adding to normal commands
@@ -145,6 +198,7 @@ impl RunningConfig {
                                                 path,
                                                 commands,
                                                 enabled_commands,
+                                                beggining_commands,
                                             );
                                             path.pop();
                                             path.pop();
@@ -155,15 +209,73 @@ impl RunningConfig {
                         }
                         continue; // Skip the rest of the firewall processing as it's handled above
                     }
+                    if key == "nat" && path.is_empty() {
+                        if let Value::Object(nat_map) = value {
+                            for (nat_type, nat_value) in nat_map {
+                                if let Value::Array(nat_array) = nat_value {
+                                    for nat_rule in nat_array {
+                                        if let Value::Object(rule_map) = nat_rule {
+                                            let mut cmd = format!("set nat {}", nat_type);
+
+                                            // Flatten nested objects and treat all fields generically
+                                            for (rule_field, rule_val) in rule_map {
+                                                // Handle nested objects
+                                                if let Value::Object(nested_obj) = rule_val {
+                                                    for (nested_key, nested_val) in nested_obj {
+                                                        cmd.push_str(&format!(
+                                                            " {} {}",
+                                                            format!(
+                                                                "{} {}",
+                                                                rule_field, nested_key
+                                                            ),
+                                                            nested_val
+                                                                .as_str()
+                                                                .unwrap_or(&nested_val.to_string())
+                                                        ));
+                                                    }
+                                                } else {
+                                                    // Handle non-object fields
+                                                    cmd.push_str(&format!(
+                                                        " {} {}",
+                                                        rule_field,
+                                                        rule_val
+                                                            .as_str()
+                                                            .unwrap_or(&rule_val.to_string())
+                                                    ));
+                                                }
+                                            }
+
+                                            let priority = self.get_command_priority(&path);
+                                            println!("Applying nat command: {}", cmd);
+                                            commands.push((priority, cmd));
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        continue; // Skip the rest of the NAT processing as it's handled above
+                    }
                     // Recursively handle other keys
                     path.push(key.clone());
-                    self.collect_commands(value, path, commands, enabled_commands);
+                    self.collect_commands(
+                        value,
+                        path,
+                        commands,
+                        enabled_commands,
+                        beggining_commands,
+                    );
                     path.pop();
                 }
             }
             Value::Array(array) => {
                 for item in array {
-                    self.collect_commands(item, path, commands, enabled_commands);
+                    self.collect_commands(
+                        item,
+                        path,
+                        commands,
+                        enabled_commands,
+                        beggining_commands,
+                    );
                 }
             }
             Value::String(s) => {
@@ -191,7 +303,7 @@ impl RunningConfig {
     /// for it. The constructed commands are then added to the `commands` vector with their respective priorities.
     ///
     fn collect_firewall_rules(
-        &mut self,
+        &self,
         rule_set_name: &str,
         rules: &Vec<Value>,
         path: &mut Vec<String>,
@@ -236,17 +348,23 @@ impl RunningConfig {
 
     // Funcție care determină prioritatea în funcție de tipul comenzii
     fn get_command_priority(&self, path: &[String]) -> i32 {
+        if path.contains(&"system".to_string()) {
+            return 2; // Prioritate înaltă pentru setarea politicii implicite
+        }
         if path.contains(&"default-policy".to_string()) {
             return 3; // Prioritate înaltă pentru setarea politicii implicite
         }
         if path.contains(&"interface".to_string()) {
-            return 4;
+            return 5;
         }
-        if path.contains(&"rules".to_string()) {
+        if path.contains(&"nat".to_string()) {
             return 6; // Prioritate medie pentru regulile firewall
         }
         if path.contains(&"interface".to_string()) && path.contains(&"firewall".to_string()) {
-            return 5; // Prioritate joasă pentru aplicarea firewall-ului la interfață
+            return 7; // Prioritate joasă pentru aplicarea firewall-ului la interfață
+        }
+        if path.contains(&"rules".to_string()) {
+            return 9; // Prioritate medie pentru regulile firewall
         }
         99 // Prioritate generală pentru alte comenzi
     }

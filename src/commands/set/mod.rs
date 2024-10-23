@@ -525,115 +525,136 @@ mod test {
     fn test_apply_json_configuration() {
         // Define the expected configuration in JSON format
         let expected_config = json!({
-            "config-version": "0.1alfa",
-            "hostname": "testrouter",
-            "interface": {
-                "eth0": {
-                    "address": "192.168.1.1/24",
-                    "description": "Internal Network",
-                    "options": {
-                        "enabled": true,
-                        "hw-id": "00:1A:2B:3C:4D:5E",
-                        "mtu": 1500
-                    },
-                    "zone": "internal",
-                    "firewall": {
-                        "in": "test-rule-set"
-                    }
-                },
-                "eth1": {
-                    "address": "192.168.10.1/24",
-                    "description": "External Network",
-                    "options": {
-                        "enabled": true,
-                        "hw-id": "00:1A:2B:3C:4D:5A",
-                        "mtu": 1500
-                    }
-                }
-            },
-            "service": {
-                "dhcp-server": {
-                    "enabled": true,
-                    "shared-network-name": {
-                        "net_internal": {
-                            "subnet": {
-                                "192.168.1.0/24": {
-                                    "start": "192.168.1.100",
-                                    "stop": "192.168.1.200",
-                                    "default-router": "192.168.1.1",
-                                    "dns-server": "8.8.8.8",
-                                    "lease": "86400"
+                            "config-version": "0.1alfa",
+                            "hostname": "testrouter",
+                            "interface": {
+                                "eth0": {
+                                    "address": "192.168.1.1/24",
+                                    "description": "Internal Network",
+                                    "options": {
+                                        "enabled": true,
+                                        "hw-id": "00:1A:2B:3C:4D:5E",
+                                        "mtu": 1500
+                                    },
+                                    "zone": "internal",
+                                    "firewall": {
+                                        "in": "test-rule-set"
+                                    }
+                                },
+                                "eth1": {
+                                    "address": "192.168.10.1/24",
+                                    "description": "External Network",
+                                    "options": {
+                                        "enabled": true,
+                                        "hw-id": "00:1A:2B:3C:4D:5A",
+                                        "mtu": 1500
+                                    }
                                 }
-                            }
+                            },
+                            "service": {
+                                "dhcp-server": {
+                                    "enabled": true,
+                                    "shared-network-name": {
+                                        "net_internal": {
+                                            "subnet": {
+                                                "192.168.1.0/24": {
+                                                    "start": "192.168.1.100",
+                                                    "stop": "192.168.1.200",
+                                                    "default-router": "192.168.1.1",
+                                                    "dns-server": "8.8.8.8",
+                                                    "lease": "86400"
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            },
+                            "protocol": {
+                                "rip": {
+                                    "network": ["192.168.12.0/24"],
+                                    "version": 2,
+                                    "passive-interface": ["eth0"],
+                                    "redistribute": {
+                                        "static": true,
+                                        "connected": true
+                                    },
+                                    "send-version": 1,
+                                    "receive-version": 2,
+                                    "distance": 200
+                                }
+                            },
+                            "firewall": {
+                                "test-rule-set": {
+                                    "default-policy": "drop",
+                                    "rules": [
+                                        {
+                                            "action": "accept",
+                                            "source": "192.168.0.1",
+                                            "destination": "192.168.0.2",
+                                            "protocol": "tcp",
+                                            "port": 80
+                                        },
+                                        {
+                                            "action": "accept",
+                                            "destination": "192.168.0.2",
+                                            "protocol": "tcp",
+                                            "port": 443
+                                        },
+                                        {
+                                            "action": "accept",
+                                            "source": "192.168.0.3",
+                                            "protocol": "udp",
+                                            "port": 53
+                                        },
+                                        {
+                                            "action": "accept",
+                                            "source": "192.168.0.4",
+                                            "destination": "192.168.0.5",
+                                            "protocol": "icmp"
+                                        },
+                                        {
+                                            "action": "accept",
+                                            "protocol": "tcp",
+                                            "port": 22
+                                        },
+                                        {
+                                            "action": "accept",
+                                            "source": "192.168.0.6"
+                                        },
+                                        {
+                                            "action": "accept",
+                                            "destination": "192.168.0.7"
+                                        }
+                                    ]
+                                }
+                            },
+                          "nat": {
+            "snat": [
+            {
+                "from": {
+                    "zone": "internal"
+                },
+                "to": "203.0.113.1"
+            }
+        ],
+        //"set", "nat", "dnat", "from", from_public_ip, from_public_port, "to", to_private_ip, to_private_port
+                    "dnat": [
+                        {
+                            "from": {
+                                "203.0.113.1": 8080 },
+                            "to": {
+                            "192.168.1.10":80
                         }
-                    }
-                }
-            },
-            "protocol": {
-                "rip": {
-                    "network": ["192.168.12.0/24"],
-                    "version": 2,
-                    "passive-interface": ["eth0"],
-                    "redistribute": {
-                        "static": true,
-                        "connected": true
-                    },
-                    "send-version": 1,
-                    "receive-version": 2,
-                    "distance": 200
-                }
-            },
-            "firewall": {
-                "test-rule-set": {
-                    "default-policy": "drop",
-                    "rules": [
-                        {
-                            "action": "accept",
-                            "source": "192.168.0.1",
-                            "destination": "192.168.0.2",
-                            "protocol": "tcp",
-                            "port": 80
-                        },
-                        {
-                            "action": "accept",
-                            "destination": "192.168.0.2",
-                            "protocol": "tcp",
-                            "port": 443
-                        },
-                        {
-                            "action": "accept",
-                            "source": "192.168.0.3",
-                            "protocol": "udp",
-                            "port": 53
-                        },
-                        {
-                            "action": "accept",
-                            "source": "192.168.0.4",
-                            "destination": "192.168.0.5",
-                            "protocol": "icmp"
-                        },
-                        {
-                            "action": "accept",
-                            "protocol": "tcp",
-                            "port": 22
-                        },
-                        {
-                            "action": "accept",
-                            "source": "192.168.0.6"
-                        },
-                        {
-                            "action": "accept",
-                            "destination": "192.168.0.7"
+
                         }
                     ]
-                }
-            },
-            "system": {
-                "ipforwarding": {
-                    "enabled": true
-                }
-            }
-        });
+                },
+                            "system": {
+                                "ipforwarding": {
+                                    "enabled": true
+                                }
+                            }
+                        });
 
         // Initialize the running configuration
         let mut running_config = RunningConfig::new();

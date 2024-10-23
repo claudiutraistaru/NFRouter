@@ -176,6 +176,7 @@ fn handle_show_command(parts: &[&str], running_config: &mut RunningConfig) {
         "routes" => parse_show_routes(parts),
         "firewall" => parse_show_firewall(running_config),
         "current-config" => parse_show_current_config(running_config),
+        "setcommands" => running_config.show_set_commands(),
         "nat" => parse_show_nat(parts),
         "protocol" => {
             if parts[2] == "rip" {
