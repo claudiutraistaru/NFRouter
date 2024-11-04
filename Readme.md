@@ -15,10 +15,10 @@
    - [DHCP Server Commands](#dhcp-server-commands)
    - [IP Forwarding Commands](#ip-forwarding-commands)
 5. Configuration examples
-[Router-on-a-Stick with Firewall to Allow ICMP](/docs/router-on-a-stick-and-icmp-allow.md)
-[Create a custom firewall and attach it to a interface](/docs/custom-firewall.md)
-[Create a dhcp server](/docs/dhcp-server.md)
-[Create a nat and a dnat with a custom firwall cu drop or accept connections](/docs/dnat-with-nat-and-firewall.md)
+- [Router-on-a-Stick with Firewall to Allow ICMP](/docs/router-on-a-stick-and-icmp-allow.md)
+- [Create a custom firewall and attach it to a interface](/docs/custom-firewall.md)
+- [Create a dhcp server](/docs/dhcp-server.md)
+- [Create a nat and a dnat with a custom firwall cu drop or accept connections](/docs/dnat-with-nat-and-firewall.md)
 
 
 ---
