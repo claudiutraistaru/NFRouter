@@ -754,7 +754,7 @@ pub fn help_commands() -> Vec<(&'static str, &'static str)> {
             "Set the default policy for the specified rule set."
     ),
         (
-            "set firewall  <rule-set-name> <rule-number> action <accept|drop|reject> source <ip-address> destination <ip-address> protocol <tcp|udp|icmp> port <port-number>",
+            "set firewall  <rule-set-name> action <accept|drop|reject> source <ip-address> destination <ip-address> protocol <tcp|udp|icmp> port <port-number>",
             "Add a firewall rule with the specified action and optional parameters (source, destination, protocol, port, interface)."
         ),
         (
@@ -773,27 +773,27 @@ pub fn help_commands() -> Vec<(&'static str, &'static str)> {
             "Set the default policy for the specified rule set."
         ),
         (
-            "set firewall <rule-set-name> <rule-number> action <accept|drop|reject>",
+            "set firewall <rule-set-name> action <accept|drop|reject>",
             "The action to take for traffic matching this rule: 'accept', 'drop', or 'reject'"
         ),
         (
-            "set firewall <rule-set-name> <rule-number> action <accept|drop|reject> source <ip-address>",
+            "set firewall <rule-set-name> action <accept|drop|reject> source <ip-address>",
             "Optional; define the source IP address to match for this rule."
         ),
         (
-            "set firewall <rule-set-name> <rule-number> action <accept|drop|reject> source <ip-address> destination <ip-address>",
+            "set firewall <rule-set-name> action <accept|drop|reject> source <ip-address> destination <ip-address>",
             " Optional; define the destination IP address to match for this rule."
         ),
         (
-            "set firewall <rule-set-name> <rule-number> action <accept|drop|reject> source <ip-address> destination <ip-address> protocol <tcp|udp|icmp>",
+            "set firewall <rule-set-name> action <accept|drop|reject> source <ip-address> destination <ip-address> protocol <tcp|udp|icmp>",
             "Optional; specify the protocol to match for this rule (e.g., TCP, UDP, ICMP)."
         ),
         (
-            "set firewall <rule-set-name> <rule-number> action <accept|drop|reject> source <ip-address> destination <ip-address> protocol <tcp|udp|icmp> port <port-number>",
+            "set firewall <rule-set-name> action <accept|drop|reject> source <ip-address> destination <ip-address> protocol <tcp|udp|icmp> port <port-number>",
             "Optional; specify the port number for the traffic, if applicable."   
         ),
         (
-            "set firewall <rule-set-name> <rule-number> action <accept|drop|reject> destination <ip-address>",
+            "set firewall <rule-set-name> action <accept|drop|reject> destination <ip-address>",
             "Optional; define the destination IP address to match for this rule."
         ),
     ]
@@ -820,28 +820,7 @@ mod tests {
             "Rule set test-rule-set already exists."
         );
     }
-    // #[test]
-    // fn test_apply_firewall_to_interface() {
-    //     let mut running_config = RunningConfig::new();
 
-    //     // Create a rule set and interface
-    //     create_firewall_rule_set("test-rule-set", &mut running_config).unwrap();
-    //     running_config.config["interface"]["eth0"] = json!({
-    //         "firewall": {}
-    //     });
-
-    //     // Set a default policy to the rule set
-    //     set_default_policy("test-rule-set", "accept", &mut running_config).unwrap();
-
-    //     // Apply the rule set to the interface for "in" traffic
-    //     let result =
-    //         apply_firewall_to_interface("eth0", "in", "test-rule-set", &mut running_config);
-    //     assert!(result.is_ok());
-
-    //     // Check if the rule set is assigned to the interface in the specified direction
-    //     let firewall_config = &running_config.config["interface"]["eth0"]["firewall"]["in"];
-    //     assert_eq!(firewall_config, "test-rule-set");
-    // }
     #[test]
     fn test_add_firewall_rule() {
         let mut running_config = RunningConfig::new();
