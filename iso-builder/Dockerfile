@@ -31,9 +31,10 @@ RUN find /iso_temp -name isolinux.bin -exec ls -l {} \; || echo "isolinux.bin no
 
 # Copy the nfrouter executable and installation script into the overlay 
 # We are using debug build for the time being
-COPY target/x86_64-unknown-linux-musl/debug/nfrouter /iso_temp/nfrouter
-COPY iso-builder/install_nfrouter.sh /iso_temp/install_nfrouter.sh
+COPY target/x86_64-unknown-linux-musl/release/nfrouter /iso_temp/nfrouter
 COPY iso-builder/answerfile /iso_temp/answerfile
+COPY iso-builder/install_nfrouter.sh /iso_temp/install_nfrouter.sh
+
 
 # Make the installation script executable
 RUN chmod +x /iso_temp/install_nfrouter.sh

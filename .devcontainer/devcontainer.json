@@ -21,7 +21,7 @@
 	// "forwardPorts": [],
 
 	// Use 'postCreateCommand' to run commands after the container is created.
-	"postCreateCommand": "rustup target add x86_64-unknown-linux-musl && apt-get update && apt-get install -y musl-tools",
+	"postCreateCommand": "rustup target add x86_64-unknown-linux-musl && apt-get update && apt-get install -y musl-tools && sh -c \"$(curl --location https://taskfile.dev/install.sh)\" -- -d -b /bin",
 
 	// Configure tool-specific properties.
 	// "customizations": {},

@@ -1,0 +1,17 @@
+version: '3'
+
+tasks:
+  greet:
+    cmds:
+      - echo Hello from Linux
+  build-iso:
+    desc: "Build ISO file using Docker"
+    cmds:      
+      - docker build -t nfrouter-iso-builder ./iso-builder
+      - docker run --name nfrouter-iso-container nfrouter-iso-builder
+      - docker cp nfrouter-iso-container:/alpine-nfrouter.iso ../output/alpine-nfrouter.iso
+      - docker rm nfrouter-iso-container
+
+    env:
+      # Optional: specify additional environment variables if needed
+      DOCKER_BUILDKIT: 1

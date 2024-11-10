@@ -1,6 +1,5 @@
 #!/bin/sh
-#
- * This file is part of NFRouter. *
+#* This file is part of NFRouter. *
 # Copyright (C) 2024 Claudiu Trăistaru
 #
 # This program is free software: you can redistribute it and/or modify
@@ -54,8 +53,7 @@ echo "Starting installation on $TARGET_DISK..."
 #mkfs.ext4 "${TARGET_DISK}1" -t ext4
 
 
-# Install Alpine Linux
-setup-alpine -f /media/cdrom/answerfile
+setup-alpine -f ./answerfile
 
 # Mount the partition
 mount "${TARGET_DISK}3" /mnt

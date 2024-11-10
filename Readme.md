@@ -15,10 +15,10 @@
    - [DHCP Server Commands](#dhcp-server-commands)
    - [IP Forwarding Commands](#ip-forwarding-commands)
 5. Configuration examples
-- [Router-on-a-Stick with Firewall to Allow ICMP](/docs/router-on-a-stick-and-icmp-allow.md)
-- [Create a custom firewall and attach it to a interface](/docs/custom-firewall.md)
-- [Create a dhcp server](/docs/dhcp-server.md)
-- [Create a nat and a dnat with a custom firwall cu drop or accept connections](/docs/dnat-with-nat-and-firewall.md)
+  - [Router-on-a-Stick with Firewall to Allow ICMP](/docs/router-on-a-stick-and-icmp-allow.md)
+  - [Create a custom firewall and attach it to a interface](/docs/custom-firewall.md)
+  - [Create a dhcp server](/docs/dhcp-server.md)
+  - [Create a nat and a dnat with a custom firwall cu drop or accept connections](/docs/dnat-with-nat-and-firewall.md)
 
 
 ---
@@ -111,13 +111,13 @@ manually create a /config folder
 - **Add Firewall Rule**
 
   ```
-  set firewall <rule-set-name> <rule-number> action <accept|drop|reject> source <ip-address> destination <ip-address> protocol <tcp|udp|icmp> port <port-number>
+  set firewall <rule-set-name> action <accept|drop|reject> source <ip-address> destination <ip-address> protocol <tcp|udp|icmp> port <port-number>
   ```
   Adds a rule to the firewall with specified parameters.
 
   Example:
   ```
-  set firewall lan 10 action accept source 192.168.1.0/24 destination 10.0.0.1 protocol tcp port 80
+  set firewall lan action accept source 192.168.1.0/24 destination 10.0.0.1 protocol tcp port 80
   ```
 
 - **Insert Firewall Rule Before or After an Existing Rule**
@@ -145,7 +145,10 @@ manually create a /config folder
   ```
   set interface eth0 firewall in lan
   ```
-
+  **Display current firewall rules for a ruleset**
+  ```
+  show firewall <rule-set-name>
+  ```
 ---
 
 ### Interface Commands
