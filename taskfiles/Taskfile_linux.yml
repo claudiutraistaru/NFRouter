@@ -1,17 +1,91 @@
 version: '3'
 
+env:
+  VERSION: "0.2"
+
 tasks:
   greet:
     cmds:
-      - echo Hello from Linux
+      - echo "Hello from Linux"
+
+  build-nfrouter:
+    desc: "Build nfrouter for x86_64-unknown-linux-musl"
+    cmds:
+      #- rustup target add x86_64-unknown-linux-musl
+      - cargo install cross --force
+      - cross clean --target x86_64-unknown-linux-musl
+      - cross build --release --target x86_64-unknown-linux-musl
+
   build-iso:
     desc: "Build ISO file using Docker"
-    cmds:      
-      - docker build -t nfrouter-iso-builder ./iso-builder
+    deps: [build-nfrouter]
+    cmds:
+      - pwd
+      - docker build -t nfrouter-iso-builder -f iso-builder/Dockerfile . --no-cache --progress=plain
       - docker run --name nfrouter-iso-container nfrouter-iso-builder
-      - docker cp nfrouter-iso-container:/alpine-nfrouter.iso ../output/alpine-nfrouter.iso
+      - docker cp nfrouter-iso-container:/alpine-nfrouter.iso output/alpine-nfrouter.iso
       - docker rm nfrouter-iso-container
-
     env:
-      # Optional: specify additional environment variables if needed
       DOCKER_BUILDKIT: 1
+
+  build-gns3:
+    deps: [build-iso]
+    cmds:
+      - echo "Starting QEMU with the built ISO..."
+      - qemu-img create -f qcow2 ./output/nfrouter-gns3-{{.VERSION}}.qcow2 5G
+      - qemu-system-x86_64 -cdrom ./output/alpine-nfrouter.iso -m 2G -boot d -drive file=./output/nfrouter-gns3-{{.VERSION}}.qcow2,format=qcow2 -netdev user,id=mynet0 -device e1000,netdev=mynet0 -vga virtio -cpu qemu64,pdpe1gb,check,enforce -smp 2
+
+      - read -p "Press Enter after completing the installation in QEMU..."
+
+      - |
+        echo "Calculating MD5 checksum..."
+        md5sum=$(md5sum ./output/nfrouter-gns3-{{.VERSION}}.qcow2 | awk '{print $1}')
+        filesize=$(stat --format="%s" ./output/nfrouter-gns3-{{.VERSION}}.qcow2)
+
+        echo "MD5 checksum is $md5sum"
+        echo "Creating GNS3 definition file..."
+
+        cat << EOF > ./output/nfrouter.gns3a
+        {
+            "name": "NFRouter GNS3 VM",
+            "category": "firewall",
+            "registry_version": 1,
+            "description": "NFRouter",
+            "vendor_name": "NFRouter",
+            "vendor_url": "NFRouter",
+            "port_name_format": "eth{port1}",
+            "product_name": "NFRouter",
+            "product_url": "NFRouter",
+            "status": "experimental",
+            "maintainer": "NFRouter Team",
+            "maintainer_email": "NA",
+            "usage": "Default username is admin, and password 12345",
+            "qemu": {
+                "adapter_type": "e1000",
+                "adapters": 2,
+                "ram": 1024,
+                "hda_disk_interface": "virtio",
+                "arch": "x86_64",
+                "console_type": "telnet",
+                "boot_priority": "c",
+                "kvm": "allow"
+            },
+            "images": [
+                {
+                    "filename": "nfrouter-gns3-{{.VERSION}}.qcow2",
+                    "version": "{{.VERSION}}",
+                    "md5sum": "$md5sum",
+                    "filesize": $filesize
+                }
+            ],
+            "versions": [
+                {
+                    "name": "{{.VERSION}}",
+                    "images": {
+                        "hda_disk_image": "nfrouter-gns3-{{.VERSION}}.qcow2"
+                    }
+                }
+            ]
+          }
+        EOF
+    description: "Create GNS3 image from build-iso output, run installation, then calculate MD5 and update .gns3 file."

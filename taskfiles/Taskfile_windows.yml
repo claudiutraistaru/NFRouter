@@ -91,7 +91,7 @@ tasks:
           }
         \"@
 
-        \$gns3Definition | Set-Content -Path .\output\gns3_image.gns3a"
+        \$gns3Definition | Set-Content -Path .\output\nfrouter.gns3a"
         
     
     description: "Create GNS3 image from build-iso output, run installation, then calculate MD5 and update .gns3 file."
