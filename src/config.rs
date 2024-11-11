@@ -21,6 +21,8 @@ use serde_json::{json, Value};
 use std::collections::HashMap;
 use std::fs;
 use std::process::Command;
+
+const VERSION: &str = env!("CARGO_PKG_VERSION");
 pub struct RunningConfig {
     pub config: Value,
 }
@@ -33,7 +35,7 @@ impl RunningConfig {
         } else {
             let mut new_config = RunningConfig {
                 config: json!({
-                   "config-version": "0.1alfa",
+                   "config-version": VERSION,
                    "interface": {}
                 }),
             };

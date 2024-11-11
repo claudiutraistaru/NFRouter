@@ -41,6 +41,9 @@ use route::set_route;
 use service::parse_service_dhcp_server_command;
 use std::net::IpAddr;
 use system::set_ip_forwarding;
+
+const VERSION: &str = env!("CARGO_PKG_VERSION");
+
 pub fn parse_set_command(
     parts: &[&str],
     running_config: &mut RunningConfig,
@@ -461,7 +464,7 @@ mod test {
         set_rip_distance(&200.to_string(), &mut running_config).unwrap();
 
         let expected_config = json!({
-            "config-version": "0.1alfa",
+            "config-version": VERSION,
             "hostname": "testrouter",
             "interface": {
                 "eth0": {
@@ -525,7 +528,7 @@ mod test {
     fn test_apply_json_configuration() {
         // Define the expected configuration in JSON format
         let expected_config = json!({
-                            "config-version": "0.1alfa",
+                            "config-version": VERSION,
                             "hostname": "testrouter",
                             "interface": {
                                 "eth0": {
