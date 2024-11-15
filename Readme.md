@@ -281,3 +281,28 @@ manually create a /config folder
   ```
 
 ---
+### Configuration commands
+To save the configuration you use:
+```
+save current-config
+```
+This will save the current configuration in  /config/currentconfig as a json
+Example:
+```
+{
+  "config-version": "0.1alfa",
+  "interface": {
+    "eth0": {
+      "options": {
+        "enabled": true,
+        "hw-id": "00:11:22:33:44:55"
+      }
+    }
+  }
+}
+```
+
+And in order to display the current configuration you use:
+```
+show current-config
+```
