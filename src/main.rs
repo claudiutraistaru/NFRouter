@@ -215,6 +215,8 @@ fn build_help(parts: &[&str], _part: &str) {
         } else {
             None
         }
+    } else if parts.len() == 1 && parts[0] == "help" {
+        None // Sau alte acțiuni dorite pentru "help"
     } else {
         Some(parts.join(" "))
     };
