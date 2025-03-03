@@ -14,7 +14,7 @@ services:
     volumes:
       - ./nocloud_alpine-3.20.2-x86_64-bios-cloudinit-r0-1.qcow2:/root/alpine.qcow2:rw
       - ./cloud-init.iso:/root/cloud-init.iso:ro
-      - ./start-qemu.sh:/usr/local/bin/start-qemu.sh:ro
+      - ./start-qemu.sh:/usr/local/bin/start-qemu.sh
       - ./generate-dhcpd-conf.sh:/run/generate-dhcpd-conf.sh:ro
       - ../target:/target
     environment:
@@ -25,7 +25,8 @@ services:
         ipv4_address: 192.168.10.10
       eth1_inside:
         ipv4_address: 10.10.0.10
-    command: /usr/local/bin/start-qemu.sh
+    #command: /usr/local/bin/start-qemu.sh
+    entrypoint: ["/usr/bin/bash", "-c", "chmod +x /usr/local/bin/start-qemu.sh && exec /usr/local/bin/start-qemu.sh"]
     ports:
       - "5901:5900"
 
@@ -42,7 +43,7 @@ services:
     volumes:
       - ./nocloud_alpine-3.20.2-x86_64-bios-cloudinit-r0-2.qcow2:/root/alpine.qcow2:rw
       - ./cloud-init.iso:/root/cloud-init.iso:ro
-      - ./start-qemu.sh:/usr/local/bin/start-qemu.sh:ro
+      - ./start-qemu.sh:/usr/local/bin/start-qemu.sh
       - ./generate-dhcpd-conf.sh:/run/generate-dhcpd-conf.sh:ro
       - ../target:/target
     environment:
@@ -53,7 +54,9 @@ services:
         ipv4_address: 192.168.10.11
       eth1_inside:
         ipv4_address: 10.10.0.11
-    command: /usr/local/bin/start-qemu.sh
+    #command: /usr/local/bin/start-qemu.sh
+    entrypoint: ["/usr/bin/bash", "-c", "chmod +x /usr/local/bin/start-qemu.sh && exec /usr/local/bin/start-qemu.sh"]
+
     ports:
       - "5902:5900"
 networks:

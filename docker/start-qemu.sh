@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 echo "Step 1: Updating packages and installing necessary tools..."
 apt-get update && apt-get install -y qemu-system-x86 qemu-kvm socat bridge-utils iproute2 jq udhcpd iputils-ping ipcalc tcpdump iptables
