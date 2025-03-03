@@ -21,10 +21,10 @@ services:
       - QEMU_IP=192.168.10.10
       - QEMU_MAC=52:54:00:12:34:56
     networks:
-      eth0_outside:
+      external:
         ipv4_address: 192.168.10.10
-      eth1_inside:
-        ipv4_address: 10.10.0.10
+      lan1:
+        ipv4_address: 10.10.0.2
     #command: /usr/local/bin/start-qemu.sh
     entrypoint: ["/usr/bin/bash", "-c", "chmod +x /usr/local/bin/start-qemu.sh && exec /usr/local/bin/start-qemu.sh"]
     ports:
@@ -50,23 +50,51 @@ services:
       - QEMU_IP=192.168.10.11
       - QEMU_MAC=52:54:00:12:34:57
     networks:
-      eth0_outside:
+      external:
         ipv4_address: 192.168.10.11
-      eth1_inside:
-        ipv4_address: 10.10.0.11
+      lan2:
+        ipv4_address: 10.11.0.2
     #command: /usr/local/bin/start-qemu.sh
     entrypoint: ["/usr/bin/bash", "-c", "chmod +x /usr/local/bin/start-qemu.sh && exec /usr/local/bin/start-qemu.sh"]
-
     ports:
       - "5902:5900"
+  linux_lan1:
+    image: alpine
+    container_name: linux_lan1
+    privileged: true
+    networks:
+      lan1:
+        ipv4_address: 10.10.0.4
+    command: >
+     sh -c "apk update && apk add iputils traceroute mtr openssh-client;
+     ip route del default;
+     ip route add default via 10.10.0.2 dev eth0;
+     sleep infinity "
+  linux_lan2:
+    image: alpine
+    container_name: linux_lan2
+    privileged: true
+    networks:
+      lan2:
+        ipv4_address: 10.11.0.4
+    command: >
+      sh -c "apk update && apk add iputils traceroute mtr openssh-client;
+      ip route del default;
+      ip route add 0.0.0.0/0 via 10.10.0.2 dev eth0;
+      sleep infinity "
 networks:
-  eth0_outside:
+  external:
     driver: bridge
     ipam:
       config:
         - subnet: 192.168.10.0/24
-  eth1_inside:
+  lan1:
     driver: bridge
     ipam:
       config:
         - subnet: 10.10.0.0/24
+  lan2:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 10.11.0.0/24
