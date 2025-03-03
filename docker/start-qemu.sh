@@ -1,21 +1,4 @@
 #!/bin/bash
-#
- * This file is part of NFRouter. *
-# Copyright (C) 2024 Claudiu Trăistaru
-#
-# This program is free software: you can redistribute it and/or modify
-# it under the terms of the GNU Affero General Public License as published by
-# the Free Software Foundation, either version 3 of the License, or
-# (at your option) any later version.
-#
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-# GNU Affero General Public License for more details.
-#
-# You should have received a copy of the GNU Affero General Public License
-# along with this program. If not, see <https://www.gnu.org/licenses/>.
-#
 
 echo "Step 1: Updating packages and installing necessary tools..."
 apt-get update && apt-get install -y qemu-system-x86 qemu-kvm socat bridge-utils iproute2 jq udhcpd iputils-ping ipcalc tcpdump iptables
@@ -36,6 +19,7 @@ QEMU_BRIDGE2="qemubr1"
 ip link set dev \$1 up
 ip link set dev \$1 master \$QEMU_BRIDGE2
 EOL
+
 echo "Step 3: Creating the ifdown script..."
 cat <<EOL > /run/qemubr0-ifdown
 #!/usr/bin/env bash
@@ -43,6 +27,7 @@ QEMU_BRIDGE="qemubr0"
 ip link set dev \$1 nomaster
 ip link set dev \$1 down
 EOL
+
 cat <<EOL > /run/qemubr1-ifdown
 #!/usr/bin/env bash
 QEMU_BRIDGE="qemubr1"
@@ -59,6 +44,7 @@ QEMU_BRIDGE="qemubr0"
 QEMU_BRIDGE2="qemubr1"
 DUMMY_DHCPD_IP="192.168.10.1"
 DHCPD_CONF_FILE="/run/dhcpd.conf"
+QEMU_MAC=${QEMU_MAC}
 
 echo "Step 6: Ensuring DHCP leases file exists..."
 mkdir -p /var/lib/misc
@@ -88,7 +74,7 @@ udhcpd -I $DUMMY_DHCPD_IP -f $DHCPD_CONF_FILE &
 
 echo "Step 15: Running QEMU..."
 exec qemu-system-x86_64 -enable-kvm -m 1024M \
--nic tap,script=/run/qemubr0-ifup,downscript=/run/qemubr0-ifdown,br=$QEMU_BRIDGE \
+-nic tap,script=/run/qemubr0-ifup,downscript=/run/qemubr0-ifdown,br=$QEMU_BRIDGE,mac=$QEMU_MAC \
 -nic tap,script=/run/qemubr1-ifup,downscript=/run/qemubr1-ifdown,br=$QEMU_BRIDGE2 \
 -hda /root/alpine.qcow2 \
 -nographic -serial unix:/root/serial.sock,server,nowait \
