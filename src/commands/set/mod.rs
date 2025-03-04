@@ -24,6 +24,7 @@ pub mod protocol;
 pub mod route;
 pub mod service;
 pub mod system;
+pub mod user;
 
 use crate::config::RunningConfig;
 use firewall::*;
@@ -41,6 +42,7 @@ use route::set_route;
 use service::parse_service_dhcp_server_command;
 use std::net::IpAddr;
 use system::set_ip_forwarding;
+use user::set_user_password;
 
 const VERSION: &str = env!("CARGO_PKG_VERSION");
 
@@ -377,7 +379,13 @@ pub fn parse_set_command(
             "service" if parts[2] == "dhcp-server" => {
                 parse_service_dhcp_server_command(parts, running_config)
             }
-
+            "user" => {
+                if parts.len() == 5 && parts[2] != "" && parts[3] == "password" && parts[4] != "" {
+                    let username = parts[2].to_string();
+                    let password = parts[4].to_string();
+                    set_user_password(username, password, running_config)
+                } else { Err("Invalid set user command".to_string()) }
+            }
             _ => Err("Invalid set command".to_string()),
         }
     } else {

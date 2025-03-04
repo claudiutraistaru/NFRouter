@@ -27,6 +27,7 @@ use commands::show::firewall::parse_show_firewall;
 use commands::show::interface::parse_show_interface;
 use commands::show::nat::parse_show_nat;
 use commands::show::protocol::show_rip;
+use commands::set::user::set_user_password;
 use commands::unset::interface::{unset_interface_ip, unset_interface_mtu, unset_interface_speed};
 use rustyline::error::ReadlineError;
 use rustyline::{Config, DefaultEditor, Editor};
@@ -237,6 +238,7 @@ fn collect_help_lines() -> Vec<(&'static str, &'static str)> {
     help_lines.extend(commands::set::hostname::help_commands());
     help_lines.extend(commands::set::interface::help_commands());
     help_lines.extend(commands::set::route::help_command());
+    help_lines.extend(commands::set::user::help_command());
     help_lines.extend(commands::show::routes::help_command());
     help_lines.extend(commands::show::currentconfig::help_command());
     help_lines.extend(commands::unset::interface::help_commands());
