@@ -130,3 +130,42 @@ pub fn help_command() -> Vec<(&'static str, &'static str)> {
         "Create or update a user with the specified password.",
     )]
 }
+
+#[test]
+fn test_set_user_password_with_plain_password() {
+    let mut running_config = RunningConfig {
+        config: json!({
+            "users": {}
+        }),
+    };
+
+    let result = set_user_password(
+        "testuser".to_string(),
+        "password123".to_string(),
+        &mut running_config,
+    );
+
+    assert!(result.is_ok());
+    assert!(running_config.config["user"]["testuser"]["password"]
+        .as_str()
+        .unwrap()
+        .starts_with("$"));
+}
+
+#[test]
+fn test_set_user_password_with_hash() {
+    let mut running_config = RunningConfig {
+        config: json!({
+        "user": {}
+        }),
+    };
+
+    let hash = "$6$81S0T/SV4CrNMgBC$RerPksapj7wieWpa4ap0Hib14qGEJ6uQDG2Fb2LJKML/11kQkfdDcqbLrGbKYRfI.905S3GGWVw4EBU8/Iuog1";
+    let result = set_user_password(
+        "testuser".to_string(),
+        hash.to_string(),
+        &mut running_config,
+    );
+    assert!(result.is_ok());
+    assert_eq!(running_config.config["user"]["testuser"]["password"], hash);
+}
