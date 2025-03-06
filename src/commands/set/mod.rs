@@ -25,6 +25,7 @@ pub mod route;
 pub mod service;
 pub mod system;
 pub mod user;
+pub mod vpn;
 
 use crate::config::RunningConfig;
 use firewall::*;
@@ -43,6 +44,7 @@ use service::parse_service_dhcp_server_command;
 use std::net::IpAddr;
 use system::set_ip_forwarding;
 use user::set_user_password;
+use vpn::set_vpn_wireguard;
 
 const VERSION: &str = env!("CARGO_PKG_VERSION");
 
@@ -384,7 +386,60 @@ pub fn parse_set_command(
                     let username = parts[2].to_string();
                     let password = parts[4].to_string();
                     set_user_password(username, password, running_config)
-                } else { Err("Invalid set user command".to_string()) }
+                } else {
+                    Err("Invalid set user command".to_string())
+                }
+            }
+            "vpn" => {
+                if parts.len() >= 4 && parts[2] == "wireguard" {
+                    let interface = parts[3].to_string();
+                    let mut address: Option<String> = None;
+                    let mut private_key: Option<String> = None;
+                    let mut peer_public_key: Option<String> = None;
+                    let mut allowed_ips: Option<String> = None;
+                    let mut endpoint: Option<String> = None;
+
+                    let mut i = 4;
+                    while i < parts.len() {
+                        match parts[i] {
+                            "address" => {
+                                address = Some(parts[i + 1].to_string());
+                                i += 2;
+                            }
+                            "private-key" => {
+                                private_key = Some(parts[i + 1].to_string());
+                                i += 2;
+                            }
+                            "peer" => {
+                                peer_public_key = Some(parts[i + 1].to_string());
+                                i += 2;
+                            }
+                            "allowed-ips" => {
+                                allowed_ips = Some(parts[i + 1].to_string());
+                                i += 2;
+                            }
+                            "endpoint" => {
+                                endpoint = Some(parts[i + 1].to_string());
+                                i += 2;
+                            }
+                            _ => {
+                                return Err("Invalid set vpn wireguard command syntax.".to_string());
+                            }
+                        }
+                    }
+
+                    set_vpn_wireguard(
+                        interface,
+                        address,
+                        private_key,
+                        peer_public_key,
+                        allowed_ips,
+                        endpoint,
+                        running_config,
+                    )
+                } else {
+                    Err("Invalid set vpn wireguard command".to_string())
+                }
             }
             _ => Err("Invalid set command".to_string()),
         }

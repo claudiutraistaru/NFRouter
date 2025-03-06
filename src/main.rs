@@ -22,12 +22,13 @@ extern crate lazy_static;
 // Definim o variabilă globală de tip bool, inițializată cu true
 
 use commands::set::interface::set_interface_ip;
+use commands::set::user::set_user_password;
+use commands::set::vpn::set_vpn_wireguard;
 use commands::show::currentconfig::parse_show_current_config;
 use commands::show::firewall::parse_show_firewall;
 use commands::show::interface::parse_show_interface;
 use commands::show::nat::parse_show_nat;
 use commands::show::protocol::show_rip;
-use commands::set::user::set_user_password;
 use commands::unset::interface::{unset_interface_ip, unset_interface_mtu, unset_interface_speed};
 use rustyline::error::ReadlineError;
 use rustyline::{Config, DefaultEditor, Editor};
@@ -41,8 +42,11 @@ use commands::help::{build_help_message, build_help_message_vec, help_for_contex
 use commands::show::hostname::parse_show_hostname;
 use commands::show::routes::parse_show_routes;
 use config::RunningConfig;
+use ctrlc;
 use serde_json::{json, Value};
 use std::env;
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::Arc;
 //This variable is needed to avoid duplicate running of firewall apply when running with -d (apply whole config)
 //This is not the optimal solution but I do not have another for now
 lazy_static! {
@@ -54,6 +58,13 @@ lazy_static! {
 }
 
 fn main() {
+    let running = Arc::new(AtomicBool::new(true));
+    let r = running.clone();
+
+    ctrlc::set_handler(move || {
+        r.store(false, Ordering::SeqCst);
+    })
+    .expect("Error setting Ctrl-C handler");
     let args: Vec<String> = env::args().collect();
     let help_lines = collect_help_lines();
 
@@ -137,7 +148,7 @@ fn main() {
                 }
             }
             Err(ReadlineError::Interrupted) => {
-                break;
+                //println!("CTRL-C detected, but continuing...");
             }
             Err(ReadlineError::Eof) => {
                 break;
@@ -256,5 +267,6 @@ fn collect_help_lines() -> Vec<(&'static str, &'static str)> {
     help_lines.extend(commands::unset::route::help_commands());
     help_lines.extend(commands::unset::system::help_commands());
     help_lines.extend(commands::unset::firewall::help_commands());
+    help_lines.extend(commands::set::vpn::help_commands());
     help_lines
 }
