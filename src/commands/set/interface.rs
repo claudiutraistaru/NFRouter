@@ -1068,6 +1068,7 @@ pub fn set_enable_proxy_arp(
         }
     }
 }
+
 pub fn help_commands() -> Vec<(&'static str, &'static str)> {
     vec![
         ("set interface", "Configure interfaces."),

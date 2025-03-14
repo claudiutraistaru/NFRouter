@@ -39,7 +39,7 @@ pub fn build_help_message() -> String {
         "  {} - {}",
         "save running-config", "Save the current configuration to a file."
     ));
-    help_lines.push(format!("  {} - {}", "help", "Show this help message."));
+    help_lines.push(format!("  {} - {}", "?", "Show this help message."));
     help_lines.push(format!("  {} - {}", "exit", "Exit the CLI."));
 
     help_lines.join("\n")
@@ -126,7 +126,7 @@ pub fn help_command() -> Vec<(&'static str, &'static str)> {
             "save current-config",
             "Save the current configuration to a file.",
         ),
-        ("help", "Show this help message."),
+        ("?", "Show this help message."),
         ("exit", "Exit the CLI."),
     ]
 }

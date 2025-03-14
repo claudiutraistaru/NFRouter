@@ -1,5 +1,4 @@
 # Dockerfile
-
 FROM alpine:latest
 
 # Install necessary tools

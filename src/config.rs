@@ -64,11 +64,10 @@ impl RunningConfig {
             &self.config.clone()
         };
 
-        //let config_clone = self.config.clone();
         let mut path = vec![];
         let mut commands: Vec<(i32, String)> = vec![]; // Collect non-enabled commands with priorities
         let mut enabled_commands: Vec<String> = vec![]; // Collect enabled commands separately
-        let mut beginning_commands = None; //Collect commands that need to be applied first
+        let mut beginning_commands = None; // Collect commands that need to be applied first
 
         // Collect all commands, separating enabled commands
         self.collect_commands(
@@ -420,7 +419,7 @@ impl RunningConfig {
     /// interfaces. It then checks if each interface has a type of 1, indicating it's a
     /// physical Ethernet interface. If so, it initializes the interface with `enabled=true`
     /// under "options" and includes its hardware ID.
-    fn detect_and_initialize_interfaces(&mut self) {
+    pub fn detect_and_initialize_interfaces(&mut self) {
         let interfaces_dir = "/sys/class/net";
         let entries = fs::read_dir(interfaces_dir).unwrap();
 

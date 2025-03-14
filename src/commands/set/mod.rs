@@ -24,6 +24,8 @@ pub mod protocol;
 pub mod route;
 pub mod service;
 pub mod system;
+pub mod user;
+pub mod vpn;
 
 use crate::config::RunningConfig;
 use firewall::*;
@@ -41,6 +43,8 @@ use route::set_route;
 use service::parse_service_dhcp_server_command;
 use std::net::IpAddr;
 use system::set_ip_forwarding;
+use user::set_user_password;
+use vpn::set_vpn_wireguard;
 
 const VERSION: &str = env!("CARGO_PKG_VERSION");
 
@@ -377,7 +381,118 @@ pub fn parse_set_command(
             "service" if parts[2] == "dhcp-server" => {
                 parse_service_dhcp_server_command(parts, running_config)
             }
+            "user" => {
+                if parts.len() == 5 && parts[2] != "" && parts[3] == "password" && parts[4] != "" {
+                    let username = parts[2].to_string();
+                    let password = parts[4].to_string();
+                    set_user_password(username, password, running_config)
+                } else {
+                    Err("Invalid set user command".to_string())
+                }
+            }
+            "vpn" => {
+                if parts.len() >= 4 && parts[2] == "wireguard" {
+                    let interface = parts[3].to_string();
+                    let mut address: Option<String> = None;
+                    let mut private_key: Option<String> = None;
+                    let mut peer_public_key: Option<String> = None;
+                    let mut allowed_ips: Option<String> = None;
+                    let mut endpoint: Option<String> = None;
+                    let mut enable = false;
+                    let mut port: Option<u16> = None;
+                    let mut peer_port: Option<u16> = None;
+                    let mut public_key: Option<String> = None;
+                    let mut peername: Option<String> = None;
 
+                    let mut i = 4;
+                    while i < parts.len() {
+                        match parts[i] {
+                            "address" => {
+                                address = Some(parts[i + 1].to_string());
+                                i += 2;
+                            }
+                            "private-key" => {
+                                private_key = Some(parts[i + 1].to_string());
+                                i += 2;
+                            }
+                            "peers" => {
+                                if i + 1 < parts.len() {
+                                    peername = Some(parts[i + 1].to_string());
+                                    i += 2;
+                                } else {
+                                    return Err("Missing peername in set vpn wireguard command."
+                                        .to_string());
+                                }
+                                while i < parts.len() {
+                                    match parts[i] {
+                                        "public-key" => {
+                                            peer_public_key = Some(parts[i + 1].to_string());
+                                            i += 2;
+                                        }
+                                        "allowed-ips" => {
+                                            allowed_ips = Some(parts[i + 1].to_string());
+                                            i += 2;
+                                        }
+                                        "endpoint" => {
+                                            endpoint = Some(parts[i + 1].to_string());
+                                            i += 2;
+                                        }
+                                        "port" => {
+                                            peer_port =
+                                                Some(parts[i + 1].parse().map_err(|_| {
+                                                    "Invalid peer port number".to_string()
+                                                })?);
+                                            i += 2;
+                                        }
+                                        _ => {
+                                            return Err(
+                                                "Invalid set vpn wireguard command syntax."
+                                                    .to_string(),
+                                            );
+                                        }
+                                    }
+                                }
+                            }
+                            "enable" => {
+                                enable = true;
+                                i += 1;
+                            }
+                            "port" => {
+                                port = Some(
+                                    parts[i + 1]
+                                        .parse()
+                                        .map_err(|_| "Invalid port number".to_string())?,
+                                );
+                                i += 2;
+                            }
+                            "public-key" => {
+                                public_key = Some(parts[i + 1].to_string());
+                                i += 2;
+                            }
+                            _ => {
+                                return Err("Invalid set vpn wireguard command syntax.".to_string());
+                            }
+                        }
+                    }
+
+                    set_vpn_wireguard(
+                        interface,
+                        address,
+                        private_key,
+                        public_key,
+                        allowed_ips,
+                        endpoint,
+                        enable,
+                        port,
+                        peer_port,
+                        peer_public_key,
+                        peername,
+                        running_config,
+                    )
+                } else {
+                    Err("Invalid set vpn wireguard command".to_string())
+                }
+            }
             _ => Err("Invalid set command".to_string()),
         }
     } else {
@@ -462,7 +577,49 @@ mod test {
         set_rip_send_version("1", &mut running_config).unwrap();
         set_rip_receive_version("2", &mut running_config).unwrap();
         set_rip_distance(&200.to_string(), &mut running_config).unwrap();
+        set_vpn_wireguard(
+            "wg0".to_string(),
+            Some("10.10.10.1/24".to_string()),
+            Some("8Di7Ea7GZm8REvFF2Nt020gXWPDDyZiHg38eqzaiUUU=".to_string()), // Valid private key
+            Some("QC9VMng5r5xc9xx4wBNY2PRqcEMzY1XQMhql5XvkcxA=".to_string()), // Valid public key
+            None,
+            None,
+            false,
+            Some(51820),
+            None,
+            None,
+            None,
+            &mut running_config,
+        );
+        set_vpn_wireguard(
+            "wg0".to_string(),
+            None,
+            Some("8Di7Ea7GZm8REvFF2Nt020gXWPDDyZiHg38eqzaiUUU=".to_string()), // Valid private key
+            Some("QC9VMng5r5xc9xx4wBNY2PRqcEMzY1XQMhql5XvkcxA=".to_string()),
+            Some("0.0.0.0/0".to_string()),
+            Some("endpoint".to_string()),
+            false,
+            None,
+            Some(51820),
+            Some("CLIENT1_PUBLIC_KEY".to_string()),
+            Some("client1".to_string()),
+            &mut running_config,
+        );
 
+        set_vpn_wireguard(
+            "wg0".to_string(),
+            None,
+            Some("8Di7Ea7GZm8REvFF2Nt020gXWPDDyZiHg38eqzaiUUU=".to_string()), // Valid private key
+            Some("QC9VMng5r5xc9xx4wBNY2PRqcEMzY1XQMhql5XvkcxA=".to_string()),
+            Some("0.0.0.0/0".to_string()),
+            Some("endpoint2".to_string()),
+            false,
+            None,
+            Some(51821),
+            Some("CLIENT2_PUBLIC_KEY".to_string()),
+            Some("client2".to_string()),
+            &mut running_config,
+        );
         let expected_config = json!({
             "config-version": VERSION,
             "hostname": "testrouter",
@@ -514,6 +671,30 @@ mod test {
                 "ipforwarding": {
                     "enabled": true
                 }
+            },
+            "vpn": {
+                "wireguard": {
+                    "wg0": {
+                        "address": "10.10.10.1/24",
+                        "port": 51820,
+                        "private-key": "8Di7Ea7GZm8REvFF2Nt020gXWPDDyZiHg38eqzaiUUU=", // Valid private key
+                        "public-key": "QC9VMng5r5xc9xx4wBNY2PRqcEMzY1XQMhql5XvkcxA=",
+                        "peers": {
+                            "client1": {
+                                "public-key": "CLIENT1_PUBLIC_KEY",
+                                "allowed-ips": "0.0.0.0/0",
+                                "endpoint": "endpoint",
+                                "port": 51820
+                            },
+                            "client2": {
+                                "public-key": "CLIENT2_PUBLIC_KEY",
+                                "allowed-ips": "0.0.0.0/0",
+                                "endpoint": "endpoint2",
+                                "port": 51821
+                            }
+                        }
+                    }
+                }
             }
         });
 
@@ -528,136 +709,159 @@ mod test {
     fn test_apply_json_configuration() {
         // Define the expected configuration in JSON format
         let expected_config = json!({
-                            "config-version": VERSION,
-                            "hostname": "testrouter",
-                            "interface": {
-                                "eth0": {
-                                    "address": "192.168.1.1/24",
-                                    "description": "Internal Network",
-                                    "options": {
-                                        "enabled": true,
-                                        "hw-id": "00:1A:2B:3C:4D:5E",
-                                        "mtu": 1500
-                                    },
-                                    "zone": "internal",
-                                    "firewall": {
-                                        "in": "test-rule-set"
-                                    }
-                                },
-                                "eth1": {
-                                    "address": "192.168.10.1/24",
-                                    "description": "External Network",
-                                    "options": {
-                                        "enabled": true,
-                                        "hw-id": "00:1A:2B:3C:4D:5A",
-                                        "mtu": 1500
-                                    }
-                                }
-                            },
-                            "service": {
-                                "dhcp-server": {
-                                    "enabled": true,
-                                    "shared-network-name": {
-                                        "net_internal": {
-                                            "subnet": {
-                                                "192.168.1.0/24": {
-                                                    "start": "192.168.1.100",
-                                                    "stop": "192.168.1.200",
-                                                    "default-router": "192.168.1.1",
-                                                    "dns-server": "8.8.8.8",
-                                                    "lease": "86400"
-                                                }
-                                            }
-                                        }
-                                    }
-                                }
-                            },
-                            "protocol": {
-                                "rip": {
-                                    "network": ["192.168.12.0/24"],
-                                    "version": 2,
-                                    "passive-interface": ["eth0"],
-                                    "redistribute": {
-                                        "static": true,
-                                        "connected": true
-                                    },
-                                    "send-version": 1,
-                                    "receive-version": 2,
-                                    "distance": 200
-                                }
-                            },
-                            "firewall": {
-                                "test-rule-set": {
-                                    "default-policy": "drop",
-                                    "rules": [
-                                        {
-                                            "action": "accept",
-                                            "source": "192.168.0.1",
-                                            "destination": "192.168.0.2",
-                                            "protocol": "tcp",
-                                            "port": 80
-                                        },
-                                        {
-                                            "action": "accept",
-                                            "destination": "192.168.0.2",
-                                            "protocol": "tcp",
-                                            "port": 443
-                                        },
-                                        {
-                                            "action": "accept",
-                                            "source": "192.168.0.3",
-                                            "protocol": "udp",
-                                            "port": 53
-                                        },
-                                        {
-                                            "action": "accept",
-                                            "source": "192.168.0.4",
-                                            "destination": "192.168.0.5",
-                                            "protocol": "icmp"
-                                        },
-                                        {
-                                            "action": "accept",
-                                            "protocol": "tcp",
-                                            "port": 22
-                                        },
-                                        {
-                                            "action": "accept",
-                                            "source": "192.168.0.6"
-                                        },
-                                        {
-                                            "action": "accept",
-                                            "destination": "192.168.0.7"
-                                        }
-                                    ]
-                                }
-                            },
-                          "nat": {
-            "snat": [
-            {
-                "from": {
-                    "zone": "internal"
+            "config-version": VERSION,
+            "hostname": "testrouter",
+            "interface": {
+                "eth0": {
+                    "address": "192.168.1.1/24",
+                    "description": "Internal Network",
+                    "options": {
+                        "enabled": true,
+                        "hw-id": "00:1A:2B:3C:4D:5E",
+                        "mtu": 1500
+                    },
+                    "zone": "internal",
+                    "firewall": {
+                        "in": "test-rule-set"
+                    }
                 },
-                "to": "203.0.113.1"
-            }
-        ],
-        //"set", "nat", "dnat", "from", from_public_ip, from_public_port, "to", to_private_ip, to_private_port
-                    "dnat": [
-                        {
-                            "from": {
-                                "203.0.113.1": 8080 },
-                            "to": {
-                            "192.168.1.10":80
-                        }
-
-                        }
-                    ]
-                },
-                            "system": {
-                                "ipforwarding": {
-                                    "enabled": true
+                "eth1": {
+                    "address": "192.168.10.1/24",
+                    "description": "External Network",
+                    "options": {
+                        "enabled": true,
+                        "hw-id": "00:1A:2B:3C:4D:5A",
+                        "mtu": 1500
+                    }
+                }
+            },
+            "service": {
+                "dhcp-server": {
+                    "enabled": true,
+                    "shared-network-name": {
+                        "net_internal": {
+                            "subnet": {
+                                "192.168.1.0/24": {
+                                    "start": "192.168.1.100",
+                                    "stop": "192.168.1.200",
+                                    "default-router": "192.168.1.1",
+                                    "dns-server": "8.8.8.8",
+                                    "lease": "86400"
                                 }
                             }
-                        });
+                        }
+                    }
+                }
+            },
+            "protocol": {
+                "rip": {
+                    "network": ["192.168.12.0/24"],
+                    "version": 2,
+                    "passive-interface": ["eth0"],
+                    "redistribute": {
+                        "static": true,
+                        "connected": true
+                    },
+                    "send-version": 1,
+                    "receive-version": 2,
+                    "distance": 200
+                }
+            },
+            "firewall": {
+                "test-rule-set": {
+                    "default-policy": "drop",
+                    "rules": [
+                        {
+                            "action": "accept",
+                            "source": "192.168.0.1",
+                            "destination": "192.168.0.2",
+                            "protocol": "tcp",
+                            "port": 80
+                        },
+                        {
+                            "action": "accept",
+                            "destination": "192.168.0.2",
+                            "protocol": "tcp",
+                            "port": 443
+                        },
+                        {
+                            "action": "accept",
+                            "source": "192.168.0.3",
+                            "protocol": "udp",
+                            "port": 53
+                        },
+                        {
+                            "action": "accept",
+                            "source": "192.168.0.4",
+                            "destination": "192.168.0.5",
+                            "protocol": "icmp"
+                        },
+                        {
+                            "action": "accept",
+                            "protocol": "tcp",
+                            "port": 22
+                        },
+                        {
+                            "action": "accept",
+                            "source": "192.168.0.6"
+                        },
+                        {
+                            "action": "accept",
+                            "destination": "192.168.0.7"
+                        }
+                    ]
+                }
+            },
+            "nat": {
+                "snat": [
+                    {
+                        "from": {
+                            "zone": "internal"
+                        },
+                        "to": "203.0.113.1"
+                    }
+                ],
+                "dnat": [
+                    {
+                        "from": {
+                            "203.0.113.1": 8080
+                        },
+                        "to": {
+                            "192.168.1.10": 80
+                        }
+                    }
+                ]
+            },
+            "system": {
+                "ipforwarding": {
+                    "enabled": true
+                }
+            },
+            "vpn": {
+                "wireguard": {
+                    "wg0": {
+                        "address": "10.10.10.1/24",
+                        "port": 51820,
+                        "private-key": "8Di7Ea7GZm8REvFF2Nt020gXWPDDyZiHg38eqzaiUUU=", // Valid private key
+                        "public-key": "QC9VMng5r5xc9xx4wBNY2PRqcEMzY1XQMhql5XvkcxA=",
+                        "peers": {
+                            "client1": {
+                                "public-key": "CLIENT1_PUBLIC_KEY",
+                                "allowed-ips": "0.0.0.0/0",
+                                "endpoint": "endpoint",
+                                "port": 51820
+                            },
+                            "client2": {
+                                "public-key": "CLIENT2_PUBLIC_KEY",
+                                "allowed-ips": "0.0.0.0/0",
+                                "endpoint": "endpoint2",
+                                "port": 51821
+                            }
+                        }
+                    }
+                }
+            }
+        });
 
         // Initialize the running configuration
         let mut running_config = RunningConfig::new();

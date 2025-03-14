@@ -65,6 +65,10 @@ chmod +x /mnt/usr/local/bin/nfrouter
 #create config directory
 mkdir /mnt/config
 
+
+
+
+
 # # Configure nfrouter to start on boot
 cat <<EOS > /mnt/etc/local.d/nfrouter.start
 #!/bin/sh
@@ -111,7 +115,7 @@ chroot /mnt rc-update add local default
 # sed -i 's/^#\(.*\/community\)/\1/' $REPO_FILE
 # echo "Community repository enabled successfully."
 chroot /mnt apk fetch
-chroot /mnt apk add dnsmasq frr conntrack-tools iptables
+chroot /mnt apk add dnsmasq frr conntrack-tools iptables tcpdump
 
 DAEMONS_FILE="/etc/frr/daemons"
 if [ ! -f "$DAEMONS_FILE" ]; then
@@ -125,6 +129,10 @@ sed -i 's/^ripngd=no/ripngd=yes/' $DAEMONS_FILE
 
 chroot /mnt rc-update add frr default
 chroot /mnt rc-update add dnsmasq default
+
+# Experiment: Configure /etc as a tmpfs in /etc/fstab
+echo "tmpfs /etc tmpfs defaults,noatime,mode=0755 0 0" >> /mnt/etc/fstab
+
 
 echo "Installation complete. Rebooting..."
 #reboot
