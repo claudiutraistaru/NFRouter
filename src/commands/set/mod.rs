@@ -415,7 +415,7 @@ pub fn parse_set_command(
                                 private_key = Some(parts[i + 1].to_string());
                                 i += 2;
                             }
-                            "peers" => {
+                            "peer" => {
                                 if i + 1 < parts.len() {
                                     peername = Some(parts[i + 1].to_string());
                                     i += 2;
@@ -453,7 +453,7 @@ pub fn parse_set_command(
                                     }
                                 }
                             }
-                            "enable" => {
+                            "enabled" => {
                                 enable = true;
                                 i += 1;
                             }
