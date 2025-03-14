@@ -14,12 +14,12 @@
    - [Routing Commands](#routing-commands)
    - [DHCP Server Commands](#dhcp-server-commands)
    - [IP Forwarding Commands](#ip-forwarding-commands)
-   - [VPN Commands (WireGuard)](#vpn-commands)
 5. Configuration examples
   - [Router-on-a-Stick with Firewall to Allow ICMP](/docs/router-on-a-stick-and-icmp-allow.md)
   - [Create a custom firewall and attach it to a interface](/docs/custom-firewall.md)
   - [Create a dhcp server](/docs/dhcp-server.md)
   - [Create a nat and a dnat with a custom firwall cu drop or accept connections](/docs/dnat-with-nat-and-firewall.md)
+
 
 ---
 
@@ -281,139 +281,28 @@ manually create a /config folder
   ```
 
 ---
-
-### VPN Commands (WireGuard)
-
-- **Set WireGuard Interface Address**
-
-  ```
-  set vpn wireguard <interface> address <address>
-  ```
-
-  Example:
-  ```
-  set vpn wireguard wg0 address 10.20.20.1/32
-  ```
-
-- **Set WireGuard Peer Parameters**
-
-  ```
-  set vpn wireguard <interface> peer <peername> allowed-ips <allowed_ips>
-  set vpn wireguard <interface> peer <peername> endpoint <endpoint>
-  set vpn wireguard <interface> peer <peername> port <port>
-  set vpn wireguard <interface> peer <peername> public-key <peer_public_key>
-  ```
-
-  Example:
-  ```
-  set vpn wireguard wg0 peer routerb allowed-ips 0.0.0.0/0
-  set vpn wireguard wg0 peer routerb endpoint 192.168.10.11
-  set vpn wireguard wg0 peer routerb port 51820
-  set vpn wireguard wg0 peer routerb public-key l/Y5FZYAeCqhl4CG3GWBgvM3fU+GOkEdDCP6kLq2rHI=
-  ```
-
-- **Set WireGuard Interface Port**
-
-  ```
-  set vpn wireguard <interface> port <port>
-  ```
-
-  Example:
-  ```
-  set vpn wireguard wg0 port 51820
-  ```
-
-- **Set WireGuard Interface Private Key**
-
-  ```
-  set vpn wireguard <interface> private-key <private_key>
-  ```
-
-  Example:
-  ```
-  set vpn wireguard wg0 private-key WGHpJpb6wjdlgcWJiK14onk1CJ5KqvRjytotQvQc90w=
-  ```
-
-- **Set WireGuard Interface Public Key**
-
-  ```
-  set vpn wireguard <interface> public-key <public_key>
-  ```
-
-  Example:
-  ```
-  set vpn wireguard wg0 public-key F2dAqgbtRnMGpL8tfHNK0xwOf61Ac4pKmEArpwua/Uw=
-  ```
-
-- **Enable WireGuard Interface**
-
-  ```
-  set vpn wireguard <interface> enabled
-  ```
-
-  Example:
-  ```
-  set vpn wireguard wg0 enabled
-  ```
-
----
-
-## Configuration Examples
-
-### Site-to-Site VPN
-
-#### Router 1
-
+### Configuration commands
+To save the configuration you use:
 ```
-set vpn wireguard wg0 address 10.20.20.1/32
-set vpn wireguard wg0 peer routerb allowed-ips 0.0.0.0/0
-set vpn wireguard wg0 peer routerb endpoint 192.168.10.11
-set vpn wireguard wg0 peer routerb port 51820
-set vpn wireguard wg0 peer routerb public-key l/Y5FZYAeCqhl4CG3GWBgvM3fU+GOkEdDCP6kLq2rHI=
-set vpn wireguard wg0 port 51820
-set vpn wireguard wg0 private-key WGHpJpb6wjdlgcWJiK14onk1CJ5KqvRjytotQvQc90w=
-set vpn wireguard wg0 public-key F2dAqgbtRnMGpL8tfHNK0xwOf61Ac4pKmEArpwua/Uw=
-set vpn wireguard wg0 enabled
+save current-config
+```
+This will save the current configuration in  /config/currentconfig as a json
+Example:
+```
+{
+  "config-version": "0.1alfa",
+  "interface": {
+    "eth0": {
+      "options": {
+        "enabled": true,
+        "hw-id": "00:11:22:33:44:55"
+      }
+    }
+  }
+}
 ```
 
-#### Router 2
-
+And in order to display the current configuration you use:
 ```
-set vpn wireguard wg0 address 10.20.20.2/32
-set vpn wireguard wg0 peer routera allowed-ips 0.0.0.0/0
-set vpn wireguard wg0 peer routera endpoint 192.168.10.10
-set vpn wireguard wg0 peer routera port 51820
-set vpn wireguard wg0 peer routera public-key F2dAqgbtRnMGpL8tfHNK0xwOf61Ac4pKmEArpwua/Uw=
-set vpn wireguard wg0 port 51820
-set vpn wireguard wg0 private-key MJFZDWFskp4RuO8rUce8BUHGLMvtKHW0+z0E7cWpF10=
-set vpn wireguard wg0 public-key l/Y5FZYAeCqhl4CG3GWBgvM3fU+GOkEdDCP6kLq2rHI=
-set vpn wireguard wg0 enabled
-```
-
-### Road-Warrior Setup
-
-#### Router
-
-```
-set vpn wireguard wg0 address 10.30.22.1/32
-set vpn wireguard wg0 peer newpeer allowed-ips 0.0.0.0/0
-set vpn wireguard wg0 peer newpeer public-key F2dAqgbtRnMGpL8tfHNK0xwOf61Ac4pKmEArpwua/Uw=
-set vpn wireguard wg0 port 51921
-set vpn wireguard wg0 private-key MJFsdWFskp4RuO8rUce8BUHGLMvtKHW0+z0E7cWpF10=
-set vpn wireguard wg0 public-key l/Y5weYAeCqhl4CG3GWBgvM3fU+GOkEdDCP6kLq2rHI=
-set vpn wireguard wg0 enabled
-```
-
-#### Road-Warrior Client
-
-```
-set vpn wireguard wgpeer2 address 10.30.22.2/32
-set vpn wireguard wgpeer2 peer router allowed-ips 0.0.0.0/0
-set vpn wireguard wgpeer2 peer router endpoint 192.168.10.10
-set vpn wireguard wgpeer2 peer router port 51921
-set vpn wireguard wgpeer2 peer router public-key l/Y5weYAeCqhl4CG3GWBgvM3fU+GOkEdDCP6kLq2rHI=
-set vpn wireguard wgpeer2 port 51921
-set vpn wireguard wgpeer2 private-key F2dAqgbtRnMGpL8tfHNK0xwOf61Ac4pKmEArpwua/Uw=
-set vpn wireguard wgpeer2 public-key MJFsdWFskp4RuO8rUce8BUHGLMvtKHW0+z0E7cWpF10=
-set vpn wireguard wgpeer2 enabled
+show current-config
 ```

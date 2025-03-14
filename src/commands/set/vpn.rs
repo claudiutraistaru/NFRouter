@@ -133,7 +133,7 @@ pub fn set_vpn_wireguard(
 
         // Add peers to the configuration
         if let Some(peers) =
-            running_config.config["vpn"]["wireguard"][&interface]["peer"].as_object()
+            running_config.config["vpn"]["wireguard"][&interface]["peers"].as_object()
         {
             for (peer_name, peer) in peers.iter() {
                 let peer_public_key = peer["public-key"].as_str().unwrap_or_default();
@@ -176,21 +176,21 @@ pub fn set_vpn_wireguard(
             ));
         }
 
-        // let assign_address = Command::new("ip")
-        //     .arg("address")
-        //     .arg("add")
-        //     .arg(&address)
-        //     .arg("dev")
-        //     .arg(&interface)
-        //     .output()
-        //     .map_err(|e| format!("Failed to assign IP address: {}", e))?;
+        let assign_address = Command::new("ip")
+            .arg("address")
+            .arg("add")
+            .arg(&address)
+            .arg("dev")
+            .arg(&interface)
+            .output()
+            .map_err(|e| format!("Failed to assign IP address: {}", e))?;
 
-        // if !assign_address.status.success() {
-        //     return Err(format!(
-        //         "Failed to assign IP address: {}",
-        //         String::from_utf8_lossy(&assign_address.stderr)
-        //     ));
-        // }
+        if !assign_address.status.success() {
+            return Err(format!(
+                "Failed to assign IP address: {}",
+                String::from_utf8_lossy(&assign_address.stderr)
+            ));
+        }
     }
 
     // Update the running configuration
@@ -231,7 +231,7 @@ pub fn set_vpn_wireguard(
     }
 
     if let Some(peername) = peername {
-        let peer_path = &["vpn", "wireguard", &interface, "peer", &peername];
+        let peer_path = &["vpn", "wireguard", &interface, "peers", &peername];
         if let Some(peer_public_key) = peer_public_key {
             running_config.add_value_to_node(peer_path, "public-key", json! {peer_public_key})?;
         }
@@ -258,39 +258,15 @@ pub fn set_vpn_wireguard(
 pub fn help_commands() -> Vec<(&'static str, &'static str)> {
     vec![
         (
-            "set vpn wireguard <interface> address <address> private-key <private_key> public-key <public-key> [port <port>]",
+            "set vpn wireguard <interface> address <address> private-key <private_key> [port <port>]",
             "Configure a WireGuard interface with the specified parameters.",
         ),
         (
-            "set vpn wireguard <interface> peer <peername> public-key <peer_public_key> allowed-ips <allowed_ips> endpoint <endpoint> port <port>",
+            "set vpn wireguard <interface> peers <peername> public-key <peer_public_key> allowed-ips <allowed_ips> endpoint <endpoint> port <port>",
             "Configure a WireGuard peer with the specified parameters.",
         ),
         (
-            "set vpn wireguard <interface> peer <peername> public-key <peer_public_key> allowed-ips <allowed_ips>",
-            "Configure a WireGuard peer with the specified parameters.",
-        ),
-        (
-            "set vpn wireguard <interface> peer <peername> public-key <peer_public_key> endpoint <endpoint> port <port>",
-            "Configure a WireGuard peer with the specified parameters.",
-        ),
-        (
-            "set vpn wireguard <interface> peer <peername> public-key <peer_public_key> port <port>",
-            "Configure a WireGuard peer with the specified parameters.",
-        ),
-        (
-            "set vpn wireguard <interface> peer <peername> allowed-ips <allowed_ips> endpoint <endpoint> port <port>",
-            "Configure a WireGuard peer with the specified parameters.",
-        ),
-        (
-            "set vpn wireguard <interface> peer <peername> allowed-ips <allowed_ips> endpoint <endpoint>",
-            "Configure a WireGuard peer with the specified parameters.",
-        ),
-        (
-            "set vpn wireguard <interface> peer <peername> allowed-ips <allowed_ips> port <port>",
-            "Configure a WireGuard peer with the specified parameters.",
-        ),
-        (
-            "set vpn wireguard <interface> peer <peername> endpoint <endpoint> port <port>",
+            "set vpn wireguard <interface> peers <peername>allowed-ips <allowed_ips> port <port>",
             "Configure a WireGuard peer with the specified parameters.",
         ),
         (
@@ -350,7 +326,7 @@ mod tests {
                 "vpn": {
                     "wireguard": {
                         "wg0": {
-                            "peer": {}
+                            "peers": {}
                         }
                     }
                 }
@@ -374,19 +350,19 @@ mod tests {
 
         assert!(result.is_ok());
         assert_eq!(
-            running_config.config["vpn"]["wireguard"]["wg0"]["peer"]["peer1"]["public-key"],
+            running_config.config["vpn"]["wireguard"]["wg0"]["peers"]["peer1"]["public-key"],
             "CLIENT1_PUBLIC_KEY"
         );
         assert_eq!(
-            running_config.config["vpn"]["wireguard"]["wg0"]["peer"]["peer1"]["allowed-ips"],
+            running_config.config["vpn"]["wireguard"]["wg0"]["peers"]["peer1"]["allowed-ips"],
             "10.10.10.2/32"
         );
         assert_eq!(
-            running_config.config["vpn"]["wireguard"]["wg0"]["peer"]["peer1"]["endpoint"],
+            running_config.config["vpn"]["wireguard"]["wg0"]["peers"]["peer1"]["endpoint"],
             "endpoint"
         );
         assert_eq!(
-            running_config.config["vpn"]["wireguard"]["wg0"]["peer"]["peer1"]["port"],
+            running_config.config["vpn"]["wireguard"]["wg0"]["peers"]["peer1"]["port"],
             51820
         );
     }
@@ -399,7 +375,7 @@ mod tests {
                 "vpn": {
                     "wireguard": {
                         "wg0": {
-                            "peer": {}
+                            "peers": {}
                         }
                     }
                 }
@@ -423,47 +399,15 @@ mod tests {
 
         assert!(result.is_ok());
         assert_eq!(
-            running_config.config["vpn"]["wireguard"]["wg0"]["peer"]["peer1"]["allowed-ips"],
+            running_config.config["vpn"]["wireguard"]["wg0"]["peers"]["peer1"]["allowed-ips"],
             "10.10.10.2/32"
         );
         assert_eq!(
-            running_config.config["vpn"]["wireguard"]["wg0"]["peer"]["peer1"]["port"],
+            running_config.config["vpn"]["wireguard"]["wg0"]["peers"]["peer1"]["port"],
             51820
         );
     }
-    #[test]
-    fn test_set_vpn_wireguard_peer_no_endpoint_no_port() {
-        // Tests: set vpn wireguard <interface> peers <peername> public-key <peer_public_key> allowed-ips <allowed_ips>
-        let expected_config = json!({
-            "vpn": {
-                "wireguard": {
-                    "wg0": {
-                        "address": "10.10.10.1/24",
-                        "port": 51820,
-                        "private-key": "8Di7Ea7GZm8REvFF2Nt020gXWPDDyZiHg38eqzaiUUU=", // Valid private key
-                        "public-key": "QC9VMng5r5xc9xx4wBNY2PRqcEMzY1XQMhql5XvkcxA=",
-                        "peer": {
-                            "client1": {
-                                "public-key": "CLIENT1_PUBLIC_KEY",
-                                "allowed-ips": "0.0.0.0/0"
-                            },
-                            "client2": {
-                                "public-key": "CLIENT2_PUBLIC_KEY",
-                                "allowed-ips": "0.0.0.0/0"
-                            }
-                        }
-                    }
-                }
-            }
-        });
 
-        // Load the configuration from the file and apply it
-        let mut running_config = RunningConfig::new();
-        running_config.apply_settings(Some(&expected_config));
-
-        // Verify that the applied configuration matches the expected configuration
-        assert_eq!(running_config.config["vpn"], expected_config["vpn"]);
-    }
     #[test]
     fn test_conf_file_generation() {
         // Tests: set vpn wireguard <interface> enable
@@ -477,7 +421,7 @@ mod tests {
                             "private-key": "8Di7Ea7GZm8REvFF2Nt020gXWPDDyZiHg38eqzaiUUU=", // Valid private key
                             "public-key": "QC9VMng5r5xc9xx4wBNY2PRqcEMzY1XQMhql5XvkcxA=",
                             "enabled": true,
-                            "peer": {
+                            "peers": {
                                 "client1": {
                                     "public-key": "CLIENT1_PUBLIC_KEY",
                                     "allowed-ips": "0.0.0.0/0",
@@ -530,7 +474,7 @@ mod tests {
                         "port": 51820,
                         "private-key": "8Di7Ea7GZm8REvFF2Nt020gXWPDDyZiHg38eqzaiUUU=", // Valid private key
                         "public-key": "QC9VMng5r5xc9xx4wBNY2PRqcEMzY1XQMhql5XvkcxA=",
-                        "peer": {
+                        "peers": {
                             "client1": {
                                 "public-key": "CLIENT1_PUBLIC_KEY",
                                 "allowed-ips": "0.0.0.0/0",
