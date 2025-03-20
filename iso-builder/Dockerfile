@@ -12,23 +12,33 @@ RUN mkdir -p /iso_temp /rootfs_squash
 # Extract ISO contents
 RUN xorriso -osirrox on -indev /alpine-standard.iso -extract / /iso_temp || (echo "ISO extraction failed" && exit 1)
 
-# Locate and extract SquashFS filesystem
-RUN find /iso_temp -name "*.squashfs" -exec mv {} /iso_temp/rootfs.squashfs \;
-RUN unsquashfs -d /rootfs_squash /iso_temp/rootfs.squashfs
+## Correctly identify and move SquashFS (root filesystem)
+#RUN mv /iso_temp/boot/squashfs /iso_temp/rootfs.squashfs
+#Move correct root filesystem SquashFS
+RUN ls /iso_temp/boot
 
-# Copy nfrouter directly into /usr/bin in the SquashFS
-COPY target/x86_64-unknown-linux-musl/release/nfrouter /rootfs_squash/usr/bin/nfrouter
-RUN chmod +x /rootfs_squash/usr/bin/nfrouter
 
-# Optionally, copy installation script (if needed)
-COPY iso-builder/install_nfrouter.sh /rootfs_squash/usr/bin/install_nfrouter.sh
-RUN chmod +x /rootfs_squash/usr/bin/install_nfrouter.sh
+# # Modify /etc/profile.d/ to add /media/cdrom/nfrouter to PATH
+# RUN mkdir -p /rootfs_squash/etc/profile.d/
+# RUN echo 'export PATH=$PATH:/media/cdrom/nfrouter' > /rootfs_squash/etc/profile.d/nfrouter_path.sh
+# RUN chmod +x /rootfs_squash/etc/profile.d/nfrouter_path.sh
+# Unpack initramfs-lts
+RUN mkdir -p /initramfs_extracted && \
+    cd /initramfs_extracted && \
+    gzip -dc /iso_temp/boot/initramfs-lts | cpio -idmv
 
-# Repack SquashFS filesystem
-RUN mksquashfs /rootfs_squash /iso_temp/boot/squashfs-rootfs -comp xz -Xbcj x86 || (echo "SquashFS repacking failed" && exit 1)
+# Add nfrouter directly to /usr/bin
+COPY target/x86_64-unknown-linux-musl/release/nfrouter /initramfs_extracted/nfrouter
+RUN chmod +x /initramfs_extracted/nfrouter
+COPY iso-builder/install_nfrouter.sh /initramfs_extracted/usr/bin/install-nfrouter
 
-# Replace original SquashFS
-RUN mv /iso_temp/boot/squashfs-rootfs /iso_temp/rootfs.squashfs
+# Repack initramfs-lts
+RUN sed -i '/exec switch_root/i mkdir -p \/sysroot\/usr\/bin \&\& cp \/nfrouter \/sysroot\/nfrouter \&\& cp \/usr\/bin\/install-nfrouter \/sysroot\/usr\/bin\/install-nfrouter' /initramfs_extracted/init
+
+
+# Repack initramfs-lts
+RUN cd /initramfs_extracted && \
+    find . | cpio -H newc -o | gzip -9 > /iso_temp/boot/initramfs-lts
 
 # Rebuild ISO with modified filesystem
 RUN xorriso -as mkisofs \
