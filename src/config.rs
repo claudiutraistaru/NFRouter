@@ -369,7 +369,7 @@ impl RunningConfig {
         }
         99 // Prioritate generală pentru alte comenzi
     }
-
+    #[allow(dead_code)]
     fn handle_multi_key_command(
         &mut self,
         map: &serde_json::Map<String, serde_json::Value>,
@@ -478,6 +478,7 @@ impl RunningConfig {
     pub fn show_current_config(&self) -> Result<String, String> {
         serde_json::to_string_pretty(&self.config).map_err(|e| e.to_string())
     }
+    #[allow(dead_code)]
     pub fn set_value_at_node(&mut self, node_path: &[&str], value: Value) -> Result<(), String> {
         let mut current_node = &mut self.config;
 

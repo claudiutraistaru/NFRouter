@@ -23,6 +23,12 @@ pub fn set_user_password(
         return Err("Username and password cannot be empty".to_string());
     }
 
+    // Special handling for the root user
+    if username == "root" {
+        // Only update the password for the root user
+        return update_password(username, password, running_config);
+    }
+
     // Check if the user exists
     let user_exists = Command::new("id")
         .arg(&username)
@@ -31,9 +37,11 @@ pub fn set_user_password(
         .unwrap_or(false);
 
     if !user_exists {
-        // Create the user with a home directory
-        let create_user = Command::new("useradd")
-            .arg("-m")
+        // Create the user with a home directory using `adduser`
+        let create_user = Command::new("adduser")
+            .arg("--disabled-password")
+            .arg("--gecos")
+            .arg("")
             .arg(&username)
             .output()
             .map_err(|e| format!("Failed to create user: {}", e))?;
@@ -46,11 +54,19 @@ pub fn set_user_password(
         }
     }
 
-    // Determine if the password is a hash
-    let is_hash = password.len() == 106 && password.starts_with('$');
+    // Update the password for the user
+    update_password(username, password, running_config)
+}
 
-    // Set the user password
-    if is_hash {
+fn update_password(
+    username: String,
+    password: String,
+    running_config: &mut RunningConfig,
+) -> Result<String, String> {
+    // Determine if the password is already a valid SHA-512 hash
+    let is_sha512_hash = password.starts_with("$6$");
+
+    if is_sha512_hash {
         // Directly write the hash to the shadow file
         let shadow_content = read_to_string("/etc/shadow")
             .map_err(|e| format!("Failed to read /etc/shadow: {}", e))?;
@@ -72,30 +88,43 @@ pub fn set_user_password(
         write("/etc/shadow", new_shadow_content)
             .map_err(|e| format!("Failed to write to /etc/shadow: {}", e))?;
     } else {
-        // Encode the password and apply it using usermod
+        // Hash the password using `openssl passwd -6` for SHA-512
         let hashed_password = Command::new("openssl")
             .arg("passwd")
-            .arg("-1")
+            .arg("-6") // Use SHA-512 hashing
             .arg(&password)
             .output()
             .map_err(|e| format!("Failed to hash password: {}", e))?;
 
         let hashed_password = String::from_utf8(hashed_password.stdout)
-            .map_err(|e| format!("Failed to convert hashed password to string: {}", e))?;
+            .map_err(|e| format!("Failed to convert hashed password to string: {}", e))?
+            .trim()
+            .to_string();
 
-        let set_password = Command::new("usermod")
-            .arg("--password")
-            .arg(hashed_password.trim())
-            .arg(&username)
-            .output()
-            .map_err(|e| format!("Failed to set password: {}", e))?;
-
-        if !set_password.status.success() {
-            return Err(format!(
-                "Failed to set password: {}",
-                String::from_utf8_lossy(&set_password.stderr)
-            ));
+        if !hashed_password.starts_with("$6$") {
+            return Err("Generated password hash is not in SHA-512 format".to_string());
         }
+
+        // Directly update the shadow file with the hashed password
+        let shadow_content = read_to_string("/etc/shadow")
+            .map_err(|e| format!("Failed to read /etc/shadow: {}", e))?;
+
+        let new_shadow_content: String = shadow_content
+            .lines()
+            .map(|line| {
+                if line.starts_with(&username) {
+                    let mut parts: Vec<&str> = line.split(':').collect();
+                    parts[1] = &hashed_password;
+                    parts.join(":")
+                } else {
+                    line.to_string()
+                }
+            })
+            .collect::<Vec<String>>()
+            .join("\n");
+
+        write("/etc/shadow", new_shadow_content)
+            .map_err(|e| format!("Failed to write to /etc/shadow: {}", e))?;
     }
 
     // Get the password hash from /etc/shadow
@@ -124,6 +153,7 @@ pub fn set_user_password(
 
     Ok(format!("User {} created/updated successfully", username))
 }
+
 pub fn help_command() -> Vec<(&'static str, &'static str)> {
     vec![(
         "set user <username> password <password>",

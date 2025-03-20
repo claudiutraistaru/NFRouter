@@ -19,7 +19,7 @@
 use crate::config::RunningConfig;
 use serde_json::json;
 use std::process::Command;
-
+#[allow(dead_code)]
 pub fn unset_nat_masquerade(
     from_zone: String,
     to_zone: String,

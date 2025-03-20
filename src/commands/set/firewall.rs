@@ -416,12 +416,12 @@ fn create_chain(chain_name: &str) -> Result<(), String> {
 /// Args:
 ///     chain_name: The name of the ruleset to check for assignment.
 ///     interface: The name of the interface to check on.
-///     direction: The direction (in/out) to check in.
+///     direction: The dizzection (in/out) to check in.
 ///     running_config: The running configuration object containing the interfaces and their firewall configurations.
 ///
 /// Returns:
 ///     A Result containing a boolean indicating whether the ruleset is assigned to the interface or not. If an error occurs, returns an error message.
-
+#[allow(dead_code)]
 fn is_ruleset_assigned_to_interface(
     chain_name: &str,
     interface: &str,
@@ -459,7 +459,7 @@ fn is_ruleset_assigned_to_interface(
 ///
 /// Returns:
 ///     A Result containing a boolean indicating whether the chain exists or not. If an error occurs, returns an error message.
-
+#[allow(dead_code)]
 fn does_chain_exist(chain: &str) -> Result<bool, String> {
     let output = Command::new("iptables")
         .arg("-S")
@@ -487,7 +487,7 @@ fn does_chain_exist(chain: &str) -> Result<bool, String> {
 ///
 /// Returns:
 ///     A Result containing a vector of strings representing the existing rules for the chain, or an error message on failure.
-
+#[allow(dead_code)]
 fn get_existing_rules(chain: &str) -> Result<Vec<String>, String> {
     let output = Command::new("iptables")
         .arg("-S")

@@ -357,7 +357,7 @@ pub fn set_rip_distance(
     };
 
     if cfg!(test) {
-        running_config.add_value_to_node(&["protocol", "rip"], "distance", json!(distance));
+        let _ = running_config.add_value_to_node(&["protocol", "rip"], "distance", json!(distance));
         return Ok(format!(
             "RIP administrative distance set to {} and applied in FRR.",
             distance
@@ -376,7 +376,8 @@ pub fn set_rip_distance(
     match output {
         Ok(output) if output.status.success() => {
             // Return success message if the command executed successfully
-            running_config.add_value_to_node(&["protocol", "rip"], "distance", json!(distance));
+            let _ =
+                running_config.add_value_to_node(&["protocol", "rip"], "distance", json!(distance));
             Ok(format!(
                 "RIP administrative distance set to {} and applied in FRR.",
                 distance
@@ -395,13 +396,13 @@ pub fn set_rip_distance(
         }
     }
 }
-
+#[allow(dead_code)]
 pub fn set_rip_default_information_originate(
     running_config: &mut RunningConfig,
 ) -> Result<String, String> {
     // Step 1: Modify the running configuration to set "default-information originate"
     if cfg!(test) {
-        running_config.add_value_to_node(
+        let _ = running_config.add_value_to_node(
             &["protocol", "rip"],
             "default-information",
             json!("originate"),
@@ -421,7 +422,7 @@ pub fn set_rip_default_information_originate(
     // Step 3: Check for errors during FRR command execution
     match output {
         Ok(output) if output.status.success() => {
-            running_config.add_value_to_node(
+            let _ = running_config.add_value_to_node(
                 &["protocol", "rip"],
                 "default-information",
                 json!("originate"),
@@ -502,7 +503,7 @@ pub fn set_rip_authentication(
     if let Some(password) = password {
         auth_config["password"] = json!(password);
     }
-    running_config.add_value_to_node(&["protocol", "rip"], "authentication", auth_config);
+    let _ = running_config.add_value_to_node(&["protocol", "rip"], "authentication", auth_config);
 
     Ok(format!(
         "RIP authentication set to mode: {}, key_chain: {:?}, password: {:?}",
@@ -524,6 +525,7 @@ pub fn set_rip_authentication(
 /// # Returns
 ///
 /// A `Result` containing a success message if the operation was successful, or an error message otherwise.
+#[allow(dead_code)]
 pub fn set_rip_send_version(
     version: &str,
     running_config: &mut RunningConfig,
@@ -623,6 +625,7 @@ pub fn set_rip_receive_version(
 /// # Returns
 ///
 /// A `Result` containing a success message if the operation was successful, or an error message otherwise.
+#[allow(dead_code)]
 pub fn set_rip_distance_default(
     distance: u8,
     running_config: &mut RunningConfig,
@@ -666,6 +669,7 @@ pub fn set_rip_distance_default(
 /// # Returns
 ///
 /// A `Result` containing a success message if the operation was successful, or an error message otherwise.
+#[allow(dead_code)]
 pub fn set_rip_distance_with_prefix(
     distance: u8,
     source_prefix: &str,

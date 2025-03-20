@@ -20,7 +20,7 @@ use std::collections::HashMap;
 use std::collections::HashSet;
 
 //use crate::commands::show::ip::command::help_ip_command;
-
+#[allow(dead_code)]
 pub fn build_help_message() -> String {
     let mut help_lines = vec!["Available commands:".to_string()];
 
@@ -44,6 +44,7 @@ pub fn build_help_message() -> String {
 
     help_lines.join("\n")
 }
+#[allow(dead_code)]
 pub fn build_help_message_vec() -> Vec<(&'static str, &'static str)> {
     let mut help_items = Vec::new();
 
