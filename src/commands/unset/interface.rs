@@ -59,7 +59,7 @@ pub fn unset_interface_ip(
 
     Ok(format!("Unset IP address on interface {}", interface))
 }
-
+#[allow(dead_code)]
 pub fn unset_interface_speed(
     interface: String,
     running_config: &mut RunningConfig,
@@ -72,7 +72,8 @@ pub fn unset_interface_speed(
         return Err(format!("Speed is not set on interface {}", &interface));
     }
     if cfg!(test) {
-        running_config.remove_value_from_node(&["interface", &interface, "options"], "speed");
+        let _ =
+            running_config.remove_value_from_node(&["interface", &interface, "options"], "speed");
         return Ok(format!(
             "Unset speed on interface {}, auto-negotiation enabled",
             interface
@@ -109,6 +110,7 @@ pub fn unset_interface_speed(
         ))
     }
 }
+#[allow(dead_code)]
 pub fn unset_interface_mtu(
     interface: String,
     running_config: &mut RunningConfig,
@@ -157,6 +159,7 @@ pub fn unset_interface_mtu(
         ))
     }
 }
+#[allow(dead_code)]
 pub fn unset_interface_duplex(
     interface: String,
     running_config: &mut RunningConfig,
@@ -204,6 +207,7 @@ pub fn unset_interface_duplex(
         ))
     }
 }
+#[allow(dead_code)]
 pub fn unset_interface_vlan(
     interface: String,
     running_config: &mut RunningConfig,
@@ -240,7 +244,7 @@ pub fn unset_interface_vlan(
 
     Ok(format!("Unset VLAN on interface {}", interface))
 }
-
+#[allow(dead_code)]
 pub fn unset_interface_zone(
     interface: String,
     running_config: &mut RunningConfig,
@@ -258,7 +262,7 @@ pub fn unset_interface_zone(
 
     Ok(format!("Unset zone on interface {}", interface))
 }
-
+#[allow(dead_code)]
 pub fn unset_interface_description(
     interface: String,
     running_config: &mut RunningConfig,
@@ -276,6 +280,7 @@ pub fn unset_interface_description(
 
     Ok(format!("Unset description on interface {}", interface))
 }
+#[allow(dead_code)]
 pub fn unset_interface_adjustmss(
     interface: String,
     running_config: &mut RunningConfig,
@@ -299,7 +304,7 @@ pub fn unset_interface_adjustmss(
         interface
     ))
 }
-
+#[allow(dead_code)]
 pub fn unset_interface_enable_proxyarp(
     interface: String,
     running_config: &mut RunningConfig,
@@ -341,7 +346,7 @@ pub fn unset_interface_enable_proxyarp(
 
     Ok(format!("Unset proxy ARP on interface {}", interface))
 }
-
+#[allow(dead_code)]
 pub fn unset_interface_firewall(
     interface: String,
     running_config: &mut RunningConfig,

@@ -64,11 +64,10 @@ impl RunningConfig {
             &self.config.clone()
         };
 
-        //let config_clone = self.config.clone();
         let mut path = vec![];
         let mut commands: Vec<(i32, String)> = vec![]; // Collect non-enabled commands with priorities
         let mut enabled_commands: Vec<String> = vec![]; // Collect enabled commands separately
-        let mut beginning_commands = None; //Collect commands that need to be applied first
+        let mut beginning_commands = None; // Collect commands that need to be applied first
 
         // Collect all commands, separating enabled commands
         self.collect_commands(
@@ -370,7 +369,7 @@ impl RunningConfig {
         }
         99 // Prioritate generală pentru alte comenzi
     }
-
+    #[allow(dead_code)]
     fn handle_multi_key_command(
         &mut self,
         map: &serde_json::Map<String, serde_json::Value>,
@@ -420,7 +419,7 @@ impl RunningConfig {
     /// interfaces. It then checks if each interface has a type of 1, indicating it's a
     /// physical Ethernet interface. If so, it initializes the interface with `enabled=true`
     /// under "options" and includes its hardware ID.
-    fn detect_and_initialize_interfaces(&mut self) {
+    pub fn detect_and_initialize_interfaces(&mut self) {
         let interfaces_dir = "/sys/class/net";
         let entries = fs::read_dir(interfaces_dir).unwrap();
 
@@ -479,6 +478,7 @@ impl RunningConfig {
     pub fn show_current_config(&self) -> Result<String, String> {
         serde_json::to_string_pretty(&self.config).map_err(|e| e.to_string())
     }
+    #[allow(dead_code)]
     pub fn set_value_at_node(&mut self, node_path: &[&str], value: Value) -> Result<(), String> {
         let mut current_node = &mut self.config;
 

@@ -21,6 +21,7 @@ pub fn show_rip() -> Result<String, String> {
     }
 }
 
+#[allow(dead_code)]
 pub fn help_command() -> Vec<(&'static str, &'static str)> {
     vec![("show rip", "Show RIP informations.")]
 }

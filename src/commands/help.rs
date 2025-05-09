@@ -20,7 +20,7 @@ use std::collections::HashMap;
 use std::collections::HashSet;
 
 //use crate::commands::show::ip::command::help_ip_command;
-
+#[allow(dead_code)]
 pub fn build_help_message() -> String {
     let mut help_lines = vec!["Available commands:".to_string()];
 
@@ -39,11 +39,12 @@ pub fn build_help_message() -> String {
         "  {} - {}",
         "save running-config", "Save the current configuration to a file."
     ));
-    help_lines.push(format!("  {} - {}", "help", "Show this help message."));
+    help_lines.push(format!("  {} - {}", "?", "Show this help message."));
     help_lines.push(format!("  {} - {}", "exit", "Exit the CLI."));
 
     help_lines.join("\n")
 }
+#[allow(dead_code)]
 pub fn build_help_message_vec() -> Vec<(&'static str, &'static str)> {
     let mut help_items = Vec::new();
 
@@ -126,7 +127,7 @@ pub fn help_command() -> Vec<(&'static str, &'static str)> {
             "save current-config",
             "Save the current configuration to a file.",
         ),
-        ("help", "Show this help message."),
+        ("?", "Show this help message."),
         ("exit", "Exit the CLI."),
     ]
 }
